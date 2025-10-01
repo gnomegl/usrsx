@@ -1,0 +1,45 @@
+// Copy of functions  - will manually insert
+
+func extractFigmaMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	nameRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	descRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+	imageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+
+	profileNameRe := regexp.MustCompile(`<h1[^>]*class="[^"]*profile_name[^"]*"[^>]*>([^<]+)</h1>`)
+	handleRe := regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
+	bioRe := regexp.MustCompile(`<div[^>]*class="[^"]*profile_bio[^"]*"[^>]*>([^<]+)</div>`)
+	filesCountRe := regexp.MustCompile(`(\d+)\s+files?`)
+
+	if matches := profileNameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = strings.TrimSpace(matches[1])
+	}
+	if matches := nameRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.DisplayName == "" {
+		metadata.DisplayName = matches[1]
+	}
+
+	if matches := bioRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = strings.TrimSpace(matches[1])
+	}
+	if matches := descRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.Bio == "" {
+		metadata.Bio = matches[1]
+	}
+
+	if matches := imageRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	if matches := handleRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["handle"] = matches[1]
+	}
+
+	if matches := filesCountRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["files_count"] = matches[1]
+	}
+
+	return metadata
+}

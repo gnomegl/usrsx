@@ -1,0 +1,4856 @@
+package core
+
+import (
+	"encoding/json"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+type MetadataExtractor func(responseText string, responseCode int) *ProfileMetadata
+
+var extractorRegistry = map[string]MetadataExtractor{
+	"GitHub":                  extractGitHubMetadata,
+	"Chess.com":               extractChessComMetadata,
+	"Gravatar":                extractGravatarMetadata,
+	"Instagram":               extractInstagramMetadata,
+	"TikTok":                  extractTikTokMetadata,
+	"Reddit":                  extractRedditMetadata,
+	"Twitter":                 extractTwitterMetadata,
+	"Mastodon-mastodon":       extractMastodonMetadata,
+	"LinkedIn":                extractLinkedInMetadata,
+	"Facebook":                extractFacebookMetadata,
+	"YouTube":                 extractYouTubeMetadata,
+	"Twitch":                  extractTwitchMetadata,
+	"Medium":                  extractMediumMetadata,
+	"Behance":                 extractBehanceMetadata,
+	"Dribbble":                extractDribbbleMetadata,
+	"DeviantArt":              extractDeviantArtMetadata,
+	"SoundCloud":              extractSoundCloudMetadata,
+	"Spotify":                 extractSpotifyMetadata,
+	"Steam":                   extractSteamMetadata,
+	"Discord":                 extractDiscordMetadata,
+	"Telegram":                extractTelegramMetadata,
+	"VK":                      extractVKMetadata,
+	"Patreon":                 extractPatreonMetadata,
+	"Ko-fi":                   extractKofiMetadata,
+	"Linktree":                extractLinktreeMetadata,
+	"MyAnimeList":             extractMyAnimeListMetadata,
+	"HackerNews":              extractHackerNewsMetadata,
+	"StackOverflow":           extractStackOverflowMetadata,
+	"GitLab":                  extractGitLabMetadata,
+	"Bitbucket":               extractBitbucketMetadata,
+	"Codepen":                 extractCodepenMetadata,
+	"Flickr":                  extractFlickrMetadata,
+	"Pinterest":               extractPinterestMetadata,
+	"Tumblr":                  extractTumblrMetadata,
+	"WordPress":               extractWordPressMetadata,
+	"Blogger":                 extractBloggerMetadata,
+	"Substack":                extractSubstackMetadata,
+	"Goodreads":               extractGoodreadsMetadata,
+	"Last.fm":                 extractLastFmMetadata,
+	"Bandcamp":                extractBandcampMetadata,
+	"Itch.io":                 extractItchIoMetadata,
+	"Product Hunt":            extractProductHuntMetadata,
+	"AngelList":               extractAngelListMetadata,
+	"Crunchbase":              extractCrunchbaseMetadata,
+	"Quora":                   extractQuoraMetadata,
+	"AboutMe":                 extractAboutMeMetadata,
+	"Keybase":                 extractKeybaseMetadata,
+	"Nextdoor":                extractNextdoorMetadata,
+	"Meetup":                  extractMeetupMetadata,
+	"Foursquare":              extractFoursquareMetadata,
+	"Yelp":                    extractYelpMetadata,
+	"Zillow":                  extractZillowMetadata,
+	"Houzz":                   extractHouzzMetadata,
+	"Vimeo":                   extractVimeoMetadata,
+	"Dailymotion":             extractDailymotionMetadata,
+	"Rumble":                  extractRumbleMetadata,
+	"Snapchat":                extractSnapchatMetadata,
+	"WeChat":                  extractWeChatMetadata,
+	"WhatsApp Business":       extractWhatsAppBusinessMetadata,
+	"Signal":                  extractSignalMetadata,
+	"Slack":                   extractSlackMetadata,
+	"Microsoft Teams":         extractMicrosoftTeamsMetadata,
+	"Zoom":                    extractZoomMetadata,
+	"Clubhouse":               extractClubhouseMetadata,
+	"Hive Social":             extractHiveSocialMetadata,
+	"Mastodon (Generic)":      extractMastodonMetadata,
+	"Bluesky":                 extractBlueskyMetadata,
+	"Threads":                 extractThreadsMetadata,
+	"Lemmy":                   extractLemmyMetadata,
+	"Kbin":                    extractKbinMetadata,
+	"ArtStation":              extractArtStationMetadata,
+	"Cohost":                  extractCohostMetadata,
+	"Pixiv":                   extractPixivMetadata,
+	"Newgrounds":              extractNewgroundsMetadata,
+	"500px":                   extract500pxMetadata,
+	"Unsplash":                extractUnsplashMetadata,
+	"VSCO":                    extractVSCOMetadata,
+	"Strava":                  extractStravaMetadata,
+	"MyFitnessPal":            extractMyFitnessPalMetadata,
+	"Duolingo":                extractDuolingoMetadata,
+	"Khan Academy":            extractKhanAcademyMetadata,
+	"Coursera":                extractCourseraMetadata,
+	"Udemy":                   extractUdemyMetadata,
+	"edX":                     extractEdXMetadata,
+	"Skillshare":              extractSkillshareMetadata,
+	"Codecademy":              extractCodecademyMetadata,
+	"freeCodeCamp":            extractFreeCodeCampMetadata,
+	"LeetCode":                extractLeetCodeMetadata,
+	"HackerRank":              extractHackerRankMetadata,
+	"Codewars":                extractCodewarsMetadata,
+	"Replit":                  extractReplitMetadata,
+	"Glitch":                  extractGlitchMetadata,
+	"Observable":              extractObservableMetadata,
+	"Kaggle":                  extractKaggleMetadata,
+	"Hugging Face":            extractHuggingFaceMetadata,
+	"Papers with Code":        extractPapersWithCodeMetadata,
+	"arXiv":                   extractArXivMetadata,
+	"ResearchGate":            extractResearchGateMetadata,
+	"Academia.edu":            extractAcademiaEduMetadata,
+	"ORCID":                   extractORCIDMetadata,
+	"Google Scholar":          extractGoogleScholarMetadata,
+	"Publons":                 extractPublonsMetadata,
+	"Figma":                   extractFigmaMetadata,
+	"Canva":                   extractCanvaMetadata,
+	"Notion":                  extractNotionMetadata,
+	"Miro":                    extractMiroMetadata,
+	"Trello":                  extractTrelloMetadata,
+	"Asana":                   extractAsanaMetadata,
+	"Monday.com":              extractMondayComMetadata,
+	"Jira":                    extractJiraMetadata,
+	"Basecamp":                extractBasecampMetadata,
+	"Wrike":                   extractWrikeMetadata,
+	"ClickUp":                 extractClickUpMetadata,
+	"Airtable":                extractAirtableMetadata,
+	"Coda":                    extractCodaMetadata,
+	"Roam Research":           extractRoamResearchMetadata,
+	"Obsidian Publish":        extractObsidianPublishMetadata,
+	"Evernote":                extractEvernoteMetadata,
+	"OneNote":                 extractOneNoteMetadata,
+	"Notion Public":           extractNotionPublicMetadata,
+	"Polywork":                extractPolyworkMetadata,
+	"Contra":                  extractContraMetadata,
+	"Wellfound (AngelList)":   extractWellfoundMetadata,
+	"Hired":                   extractHiredMetadata,
+	"Triplebyte":              extractTriplebyteMetadata,
+	"Toptal":                  extractToptalMetadata,
+	"Upwork":                  extractUpworkMetadata,
+	"Fiverr":                  extractFiverrMetadata,
+	"Freelancer":              extractFreelancerMetadata,
+	"Guru":                    extractGuruMetadata,
+	"PeoplePerHour":           extractPeoplePerHourMetadata,
+	"99designs":               extract99designsMetadata,
+	"Behance Network":         extractBehanceNetworkMetadata,
+	"Coroflot":                extractCoroflotMetadata,
+	"Carbonmade":              extractCarbonmadeMetadata,
+	"Portfoliobox":            extractPortfolioboxMetadata,
+	"Format":                  extractFormatMetadata,
+	"Cargo Collective":        extractCargoCollectiveMetadata,
+	"Squarespace Portfolio":   extractSquarespacePortfolioMetadata,
+	"Wix Portfolio":           extractWixPortfolioMetadata,
+	"Webflow Portfolio":       extractWebflowPortfolioMetadata,
+	"ReadCV":                  extractReadCVMetadata,
+	"Bento":                   extractBentoMetadata,
+	"Beacons":                 extractBeaconsMetadata,
+	"Carrd":                   extractCarrdMetadata,
+	"Milkshake":               extractMilkshakeMetadata,
+	"Linkin.bio":              extractLinkinBioMetadata,
+	"Taplink":                 extractTaplinkMetadata,
+	"Linkpop":                 extractLinkpopMetadata,
+	"Shorby":                  extractShorbyMetadata,
+	"Campsite":                extractCampsiteMetadata,
+	"Bio.fm":                  extractBioFmMetadata,
+	"Lnk.Bio":                 extractLnkBioMetadata,
+	"AllMyLinks":              extractAllMyLinksMetadata,
+	"ContactInBio":            extractContactInBioMetadata,
+	"Hoo.be":                  extractHooBeMetadata,
+	"Snipfeed":                extractSnipfeedMetadata,
+	"Koji":                    extractKojiMetadata,
+	"Stan Store":              extractStanStoreMetadata,
+	"Gumroad":                 extractGumroadMetadata,
+	"Teachable":               extractTeachableMetadata,
+	"Thinkific":               extractThinkificMetadata,
+	"Podia":                   extractPodiaMetadata,
+	"Kajabi":                  extractKajabiMetadata,
+	"Circle":                  extractCircleMetadata,
+	"Mighty Networks":         extractMightyNetworksMetadata,
+	"Community.com":           extractCommunityComMetadata,
+	"Geneva":                  extractGenevaMetadata,
+	"Guilded":                 extractGuildedMetadata,
+	"Revolt":                  extractRevoltMetadata,
+	"Matrix":                  extractMatrixMetadata,
+	"Element":                 extractElementMetadata,
+	"Rocket.Chat":             extractRocketChatMetadata,
+	"Mattermost":              extractMattermostMetadata,
+	"Zulip":                   extractZulipMetadata,
+	"Discourse":               extractDiscourseMetadata,
+	"Flarum":                  extractFlarumMetadata,
+	"NodeBB":                  extractNodeBBMetadata,
+	"phpBB":                   extractPhpBBMetadata,
+	"vBulletin":               extractVBulletinMetadata,
+	"XenForo":                 extractXenForoMetadata,
+	"Invision Community":      extractInvisionCommunityMetadata,
+	"MyBB":                    extractMyBBMetadata,
+	"Simple Machines Forum":   extractSimpleMachinesForumMetadata,
+	"FluxBB":                  extractFluxBBMetadata,
+	"PunBB":                   extractPunBBMetadata,
+	"bbPress":                 extractBbPressMetadata,
+	"BuddyPress":              extractBuddyPressMetadata,
+	"Elgg":                    extractElggMetadata,
+	"Oxwall":                  extractOxwallMetadata,
+	"SocialEngine":            extractSocialEngineMetadata,
+	"Dolphin":                 extractDolphinMetadata,
+	"Jcow":                    extractJcowMetadata,
+	"PHPFox":                  extractPHPFoxMetadata,
+	"Ning":                    extractNingMetadata,
+	"Yammer":                  extractYammerMetadata,
+	"Workplace from Facebook": extractWorkplaceFromFacebookMetadata,
+	"Chatter":                 extractChatterMetadata,
+	"Jive":                    extractJiveMetadata,
+	"Lithium":                 extractLithiumMetadata,
+	"Vanilla Forums":          extractVanillaForumsMetadata,
+	"Disqus":                  extractDisqusMetadata,
+	"Commento":                extractCommentoMetadata,
+	"Remark42":                extractRemark42Metadata,
+	"Isso":                    extractIssoMetadata,
+	"Staticman":               extractStaticmanMetadata,
+	"utterances":              extractUtterancesMetadata,
+	"giscus":                  extractGiscusMetadata,
+	"Hyvor Talk":              extractHyvorTalkMetadata,
+	"GraphComment":            extractGraphCommentMetadata,
+	"IntenseDebate":           extractIntenseDebateMetadata,
+	"Livefyre":                extractLivefyreMetadata,
+	"Muut":                    extractMuutMetadata,
+	"Coral Project Talk":      extractCoralProjectTalkMetadata,
+	"Civil Comments":          extractCivilCommentsMetadata,
+	"Viafoura":                extractViafourametadata,
+	"OpenWeb":                 extractOpenWebMetadata,
+	"RebelMouse":              extractRebelMouseMetadata,
+	"Spot.IM":                 extractSpotIMMetadata,
+	"Vuukle":                  extractVuukleMetadata,
+	"Remarkbox":               extractRemarkboxMetadata,
+	"Schnack":                 extractSchnackMetadata,
+	"Talkyard":                extractTalkyardMetadata,
+	"Cusdis":                  extractCusdisMetadata,
+	"Cactus Comments":         extractCactusCommentsMetadata,
+	"Plausible Comments":      extractPlausibleCommentsMetadata,
+	"Ruttl":                   extractRuttlMetadata,
+	"Annotate.tv":             extractAnnotateTVMetadata,
+	"Hypothes.is":             extractHypothesisMetadata,
+	"Genius":                  extractGeniusMetadata,
+	"Rap Genius":              extractRapGeniusMetadata,
+	"Rock Genius":             extractRockGeniusMetadata,
+	"News Genius":             extractNewsGeniusMetadata,
+	"Poetry Genius":           extractPoetryGeniusMetadata,
+	"Sports Genius":           extractSportsGeniusMetadata,
+	"Country Genius":          extractCountryGeniusMetadata,
+	"Pop Genius":              extractPopGeniusMetadata,
+	"R&B Genius":              extractRnBGeniusMetadata,
+	"Christian Genius":        extractChristianGeniusMetadata,
+	"Gospel Genius":           extractGospelGeniusMetadata,
+	"Roblox":                  extractRobloxMetadata,
+	"MCName (Minecraft)":      extractMinecraftMetadata,
+	"MCUUID (Minecraft)":      extractMinecraftMetadata,
+	"Minecraft List":          extractMinecraftMetadata,
+	"Xbox Gamertag":           extractXboxGamertagMetadata,
+	"Fortnite Tracker":        extractFortniteMetadata,
+}
+
+func ExtractMetadata(siteName string, responseText string, responseCode int) *ProfileMetadata {
+	if extractor, exists := extractorRegistry[siteName]; exists {
+		return extractor(responseText, responseCode)
+	}
+	return extractGenericJSONMetadata(responseText)
+}
+
+func extractGitHubMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if login, ok := data["login"].(string); ok {
+		metadata.CustomFields["username"] = login
+	}
+	if name, ok := data["name"].(string); ok {
+		metadata.DisplayName = name
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if avatarURL, ok := data["avatar_url"].(string); ok {
+		metadata.AvatarURL = avatarURL
+	}
+	if location, ok := data["location"].(string); ok {
+		metadata.Location = location
+	}
+	if blog, ok := data["blog"].(string); ok && blog != "" {
+		metadata.Website = blog
+	}
+	if createdAt, ok := data["created_at"].(string); ok {
+		metadata.JoinDate = createdAt
+	}
+	if followers, ok := data["followers"].(float64); ok {
+		metadata.FollowerCount = int(followers)
+	}
+	if following, ok := data["following"].(float64); ok {
+		metadata.FollowingCount = int(following)
+	}
+	if twitterUsername, ok := data["twitter_username"].(string); ok && twitterUsername != "" {
+		metadata.AdditionalLinks["twitter"] = "https://twitter.com/" + twitterUsername
+	}
+	if company, ok := data["company"].(string); ok && company != "" {
+		metadata.CustomFields["company"] = company
+	}
+	if publicRepos, ok := data["public_repos"].(float64); ok {
+		metadata.CustomFields["public_repos"] = strconv.Itoa(int(publicRepos))
+	}
+	if publicGists, ok := data["public_gists"].(float64); ok {
+		metadata.CustomFields["public_gists"] = strconv.Itoa(int(publicGists))
+	}
+
+	return metadata
+}
+
+func extractChessComMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields: make(map[string]string),
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+	}
+	if avatar, ok := data["avatar"].(string); ok {
+		metadata.AvatarURL = avatar
+	}
+	if followers, ok := data["followers"].(float64); ok {
+		metadata.FollowerCount = int(followers)
+	}
+	if joined, ok := data["joined"].(float64); ok {
+		metadata.JoinDate = strconv.FormatInt(int64(joined), 10)
+	}
+	if country, ok := data["country"].(string); ok {
+		metadata.CustomFields["country"] = country
+	}
+	if status, ok := data["status"].(string); ok {
+		metadata.CustomFields["status"] = status
+	}
+	if isStreamer, ok := data["is_streamer"].(bool); ok {
+		metadata.CustomFields["is_streamer"] = strconv.FormatBool(isStreamer)
+	}
+	if verified, ok := data["verified"].(bool); ok {
+		metadata.IsVerified = verified
+	}
+
+	return metadata
+}
+
+func extractGravatarMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields: make(map[string]string),
+	}
+
+	if entry, ok := data["entry"].([]interface{}); ok && len(entry) > 0 {
+		if firstEntry, ok := entry[0].(map[string]interface{}); ok {
+			if username, ok := firstEntry["preferredUsername"].(string); ok {
+				metadata.CustomFields["username"] = username
+			}
+			if displayName, ok := firstEntry["displayName"].(string); ok {
+				metadata.DisplayName = displayName
+			}
+			if aboutMe, ok := firstEntry["aboutMe"].(string); ok {
+				metadata.Bio = aboutMe
+			}
+			if thumbnailURL, ok := firstEntry["thumbnailUrl"].(string); ok {
+				metadata.AvatarURL = thumbnailURL
+			}
+			if photos, ok := firstEntry["photos"].([]interface{}); ok && len(photos) > 0 {
+				if photo, ok := photos[0].(map[string]interface{}); ok {
+					if photoValue, ok := photo["value"].(string); ok {
+						metadata.AvatarURL = photoValue
+					}
+				}
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractInstagramMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	sharedDataRe := regexp.MustCompile(`<script type="application/ld\+json">({[^<]+})</script>`)
+	if matches := sharedDataRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(matches[1]), &data); err == nil {
+			if name, ok := data["name"].(string); ok {
+				metadata.DisplayName = name
+			}
+			if alternateName, ok := data["alternateName"].(string); ok {
+				metadata.CustomFields["username"] = alternateName
+			}
+			if description, ok := data["description"].(string); ok {
+				metadata.Bio = description
+			}
+			if image, ok := data["image"].(string); ok {
+				metadata.AvatarURL = image
+			}
+			if interactionStatistic, ok := data["interactionStatistic"].(map[string]interface{}); ok {
+				if userInteractionCount, ok := interactionStatistic["userInteractionCount"].(string); ok {
+					if count, err := strconv.Atoi(userInteractionCount); err == nil {
+						metadata.FollowerCount = count
+					}
+				}
+			}
+		}
+	}
+
+	sharedDataRegex := regexp.MustCompile(`window\._sharedData\s*=\s*({.+?});`)
+	if matches := sharedDataRegex.FindStringSubmatch(responseText); len(matches) > 1 {
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(matches[1]), &data); err == nil {
+			if entryData, ok := data["entry_data"].(map[string]interface{}); ok {
+				if profilePage, ok := entryData["ProfilePage"].([]interface{}); ok && len(profilePage) > 0 {
+					if page, ok := profilePage[0].(map[string]interface{}); ok {
+						if graphql, ok := page["graphql"].(map[string]interface{}); ok {
+							if user, ok := graphql["user"].(map[string]interface{}); ok {
+								if username, ok := user["username"].(string); ok {
+									metadata.CustomFields["username"] = username
+								}
+								if fullName, ok := user["full_name"].(string); ok {
+									metadata.DisplayName = fullName
+								}
+								if bio, ok := user["biography"].(string); ok {
+									metadata.Bio = bio
+								}
+								if profilePicURL, ok := user["profile_pic_url_hd"].(string); ok {
+									metadata.AvatarURL = profilePicURL
+								} else if profilePicURL, ok := user["profile_pic_url"].(string); ok {
+									metadata.AvatarURL = profilePicURL
+								}
+								if edgeFollowedBy, ok := user["edge_followed_by"].(map[string]interface{}); ok {
+									if count, ok := edgeFollowedBy["count"].(float64); ok {
+										metadata.FollowerCount = int(count)
+									}
+								}
+								if edgeFollow, ok := user["edge_follow"].(map[string]interface{}); ok {
+									if count, ok := edgeFollow["count"].(float64); ok {
+										metadata.FollowingCount = int(count)
+									}
+								}
+								if edgeOwnerToTimelineMedia, ok := user["edge_owner_to_timeline_media"].(map[string]interface{}); ok {
+									if count, ok := edgeOwnerToTimelineMedia["count"].(float64); ok {
+										metadata.CustomFields["post_count"] = strconv.Itoa(int(count))
+									}
+								}
+								if isVerified, ok := user["is_verified"].(bool); ok {
+									metadata.IsVerified = isVerified
+								}
+								if externalURL, ok := user["external_url"].(string); ok && externalURL != "" {
+									metadata.Website = externalURL
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if metadata.DisplayName == "" {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	return metadata
+}
+
+func extractTikTokMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if authorName, ok := data["author_name"].(string); ok {
+		metadata.DisplayName = authorName
+	}
+	if authorURL, ok := data["author_url"].(string); ok {
+		metadata.CustomFields["profile_url"] = authorURL
+	}
+	if thumbnailURL, ok := data["thumbnail_url"].(string); ok {
+		metadata.AvatarURL = thumbnailURL
+	}
+	if title, ok := data["title"].(string); ok && metadata.DisplayName == "" {
+		metadata.DisplayName = title
+	}
+
+	return metadata
+}
+
+func extractRedditMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields: make(map[string]string),
+	}
+
+	dataObj, ok := data["data"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	if name, ok := dataObj["name"].(string); ok {
+		metadata.CustomFields["username"] = name
+	}
+	if iconImg, ok := dataObj["icon_img"].(string); ok && iconImg != "" {
+		metadata.AvatarURL = iconImg
+	}
+	if commentKarma, ok := dataObj["comment_karma"].(float64); ok {
+		metadata.CustomFields["comment_karma"] = strconv.Itoa(int(commentKarma))
+	}
+	if linkKarma, ok := dataObj["link_karma"].(float64); ok {
+		metadata.CustomFields["link_karma"] = strconv.Itoa(int(linkKarma))
+	}
+	if totalKarma, ok := dataObj["total_karma"].(float64); ok {
+		metadata.CustomFields["total_karma"] = strconv.Itoa(int(totalKarma))
+	}
+	if created, ok := dataObj["created_utc"].(float64); ok {
+		metadata.JoinDate = strconv.FormatInt(int64(created), 10)
+	}
+	if verified, ok := dataObj["verified"].(bool); ok {
+		metadata.IsVerified = verified
+	}
+	if subreddit, ok := dataObj["subreddit"].(map[string]interface{}); ok {
+		if title, ok := subreddit["title"].(string); ok {
+			metadata.CustomFields["subreddit_title"] = title
+		}
+		if subscribers, ok := subreddit["subscribers"].(float64); ok {
+			metadata.FollowerCount = int(subscribers)
+		}
+	}
+	if isGold, ok := dataObj["is_gold"].(bool); ok && isGold {
+		metadata.CustomFields["is_gold"] = "true"
+	}
+	if isMod, ok := dataObj["is_mod"].(bool); ok && isMod {
+		metadata.CustomFields["is_mod"] = "true"
+	}
+
+	return metadata
+}
+
+func extractTwitterMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	ogTitleRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	ogDescRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+	ogImageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+	twitterImageRe := regexp.MustCompile(`<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']`)
+
+	if matches := ogTitleRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		title := matches[1]
+		if strings.Contains(title, " (@") {
+			parts := strings.Split(title, " (@")
+			metadata.DisplayName = parts[0]
+			if len(parts) > 1 {
+				username := strings.TrimSuffix(parts[1], ")")
+				metadata.CustomFields["username"] = username
+			}
+		} else {
+			metadata.DisplayName = title
+		}
+	}
+
+	if matches := ogDescRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = matches[1]
+	}
+
+	if matches := ogImageRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+	if matches := twitterImageRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.AvatarURL == "" {
+		metadata.AvatarURL = matches[1]
+	}
+
+	followersRe := regexp.MustCompile(`([0-9,.KMB]+)\s+[Ff]ollowers`)
+	if matches := followersRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		countStr := strings.ReplaceAll(matches[1], ",", "")
+		if strings.HasSuffix(countStr, "K") {
+			if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "K"), 64); err == nil {
+				metadata.FollowerCount = int(val * 1000)
+			}
+		} else if strings.HasSuffix(countStr, "M") {
+			if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "M"), 64); err == nil {
+				metadata.FollowerCount = int(val * 1000000)
+			}
+		} else if strings.HasSuffix(countStr, "B") {
+			if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "B"), 64); err == nil {
+				metadata.FollowerCount = int(val * 1000000000)
+			}
+		} else {
+			if count, err := strconv.Atoi(countStr); err == nil {
+				metadata.FollowerCount = count
+			}
+		}
+	}
+
+	followingRe := regexp.MustCompile(`([0-9,.KMB]+)\s+[Ff]ollowing`)
+	if matches := followingRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		countStr := strings.ReplaceAll(matches[1], ",", "")
+		if strings.HasSuffix(countStr, "K") {
+			if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "K"), 64); err == nil {
+				metadata.FollowingCount = int(val * 1000)
+			}
+		} else if strings.HasSuffix(countStr, "M") {
+			if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "M"), 64); err == nil {
+				metadata.FollowingCount = int(val * 1000000)
+			}
+		} else {
+			if count, err := strconv.Atoi(countStr); err == nil {
+				metadata.FollowingCount = count
+			}
+		}
+	}
+
+	verifiedRe := regexp.MustCompile(`verified["\s]`)
+	if verifiedRe.MatchString(responseText) {
+		metadata.IsVerified = true
+	}
+
+	locationRe := regexp.MustCompile(`<span[^>]*>📍\s*([^<]+)</span>`)
+	if matches := locationRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Location = strings.TrimSpace(matches[1])
+	}
+
+	return metadata
+}
+
+func extractMastodonMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+	}
+	if acct, ok := data["acct"].(string); ok {
+		metadata.CustomFields["acct"] = acct
+	}
+	if displayName, ok := data["display_name"].(string); ok {
+		metadata.DisplayName = displayName
+	}
+	if note, ok := data["note"].(string); ok {
+		metadata.Bio = note
+	}
+	if avatar, ok := data["avatar"].(string); ok {
+		metadata.AvatarURL = avatar
+	}
+	if url, ok := data["url"].(string); ok {
+		metadata.Website = url
+	}
+	if createdAt, ok := data["created_at"].(string); ok {
+		metadata.JoinDate = createdAt
+	}
+	if followersCount, ok := data["followers_count"].(float64); ok {
+		metadata.FollowerCount = int(followersCount)
+	}
+	if followingCount, ok := data["following_count"].(float64); ok {
+		metadata.FollowingCount = int(followingCount)
+	}
+	if statusesCount, ok := data["statuses_count"].(float64); ok {
+		metadata.CustomFields["statuses_count"] = strconv.Itoa(int(statusesCount))
+	}
+	if locked, ok := data["locked"].(bool); ok && locked {
+		metadata.CustomFields["locked"] = "true"
+	}
+	if bot, ok := data["bot"].(bool); ok && bot {
+		metadata.CustomFields["bot"] = "true"
+	}
+	if fields, ok := data["fields"].([]interface{}); ok {
+		for i, field := range fields {
+			if f, ok := field.(map[string]interface{}); ok {
+				if name, ok := f["name"].(string); ok {
+					if value, ok := f["value"].(string); ok {
+						metadata.CustomFields["field_"+strconv.Itoa(i)+"_"+name] = value
+					}
+				}
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractLinkedInMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	ogTitleRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	ogDescRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+	ogImageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+
+	if matches := ogTitleRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = matches[1]
+	}
+
+	if matches := ogDescRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		desc := matches[1]
+		parts := strings.Split(desc, " - ")
+		if len(parts) > 1 {
+			metadata.CustomFields["headline"] = parts[0]
+			metadata.Bio = desc
+		} else {
+			metadata.Bio = desc
+		}
+	}
+
+	if matches := ogImageRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	locationRe := regexp.MustCompile(`<span[^>]*class="[^"]*location[^"]*"[^>]*>([^<]+)</span>`)
+	if matches := locationRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Location = strings.TrimSpace(matches[1])
+	}
+
+	headlineRe := regexp.MustCompile(`"headline"\s*:\s*"([^"]+)"`)
+	if matches := headlineRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.CustomFields["headline"] == "" {
+		metadata.CustomFields["headline"] = matches[1]
+	}
+
+	nameRe := regexp.MustCompile(`"name"\s*:\s*"([^"]+)"`)
+	if matches := nameRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.DisplayName == "" {
+		metadata.DisplayName = matches[1]
+	}
+
+	imageRe := regexp.MustCompile(`"image"\s*:\s*"([^"]+)"`)
+	if matches := imageRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.AvatarURL == "" {
+		metadata.AvatarURL = matches[1]
+	}
+
+	return metadata
+}
+
+func extractFacebookMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	ogTitleRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	ogDescRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+	ogImageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+
+	if matches := ogTitleRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = matches[1]
+	}
+
+	if matches := ogDescRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = matches[1]
+	}
+
+	if matches := ogImageRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	followersRe := regexp.MustCompile(`([0-9,.KMB]+)\s+[Ff]ollowers`)
+	if matches := followersRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		countStr := strings.ReplaceAll(matches[1], ",", "")
+		if strings.HasSuffix(countStr, "K") {
+			if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "K"), 64); err == nil {
+				metadata.FollowerCount = int(val * 1000)
+			}
+		} else if strings.HasSuffix(countStr, "M") {
+			if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "M"), 64); err == nil {
+				metadata.FollowerCount = int(val * 1000000)
+			}
+		} else if strings.HasSuffix(countStr, "B") {
+			if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "B"), 64); err == nil {
+				metadata.FollowerCount = int(val * 1000000000)
+			}
+		} else {
+			if count, err := strconv.Atoi(countStr); err == nil {
+				metadata.FollowerCount = count
+			}
+		}
+	}
+
+	likesRe := regexp.MustCompile(`([0-9,.KMB]+)\s+[Ll]ikes`)
+	if matches := likesRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["likes"] = matches[1]
+	}
+
+	return metadata
+}
+
+func extractYouTubeMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if snippet, ok := data["snippet"].(map[string]interface{}); ok {
+		if title, ok := snippet["title"].(string); ok {
+			metadata.DisplayName = title
+		}
+		if description, ok := snippet["description"].(string); ok {
+			metadata.Bio = description
+		}
+		if customURL, ok := snippet["customUrl"].(string); ok {
+			metadata.CustomFields["custom_url"] = customURL
+		}
+		if publishedAt, ok := snippet["publishedAt"].(string); ok {
+			metadata.JoinDate = publishedAt
+		}
+		if thumbnails, ok := snippet["thumbnails"].(map[string]interface{}); ok {
+			if high, ok := thumbnails["high"].(map[string]interface{}); ok {
+				if url, ok := high["url"].(string); ok {
+					metadata.AvatarURL = url
+				}
+			} else if medium, ok := thumbnails["medium"].(map[string]interface{}); ok {
+				if url, ok := medium["url"].(string); ok {
+					metadata.AvatarURL = url
+				}
+			} else if def, ok := thumbnails["default"].(map[string]interface{}); ok {
+				if url, ok := def["url"].(string); ok {
+					metadata.AvatarURL = url
+				}
+			}
+		}
+		if country, ok := snippet["country"].(string); ok {
+			metadata.Location = country
+		}
+	}
+
+	if statistics, ok := data["statistics"].(map[string]interface{}); ok {
+		if subscriberCount, ok := statistics["subscriberCount"].(string); ok {
+			if count, err := strconv.Atoi(subscriberCount); err == nil {
+				metadata.FollowerCount = count
+			}
+		}
+		if videoCount, ok := statistics["videoCount"].(string); ok {
+			metadata.CustomFields["video_count"] = videoCount
+		}
+		if viewCount, ok := statistics["viewCount"].(string); ok {
+			metadata.CustomFields["view_count"] = viewCount
+		}
+	}
+
+	if brandingSettings, ok := data["brandingSettings"].(map[string]interface{}); ok {
+		if channel, ok := brandingSettings["channel"].(map[string]interface{}); ok {
+			if keywords, ok := channel["keywords"].(string); ok {
+				metadata.CustomFields["keywords"] = keywords
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractTwitchMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if dataArray, ok := data["data"].([]interface{}); ok && len(dataArray) > 0 {
+		if user, ok := dataArray[0].(map[string]interface{}); ok {
+			if displayName, ok := user["display_name"].(string); ok {
+				metadata.DisplayName = displayName
+			}
+			if login, ok := user["login"].(string); ok {
+				metadata.CustomFields["username"] = login
+			}
+			if description, ok := user["description"].(string); ok {
+				metadata.Bio = description
+			}
+			if profileImageURL, ok := user["profile_image_url"].(string); ok {
+				metadata.AvatarURL = profileImageURL
+			}
+			if broadcasterType, ok := user["broadcaster_type"].(string); ok {
+				metadata.CustomFields["broadcaster_type"] = broadcasterType
+				if broadcasterType == "partner" {
+					metadata.IsVerified = true
+				}
+			}
+			if viewCount, ok := user["view_count"].(float64); ok {
+				metadata.CustomFields["view_count"] = strconv.Itoa(int(viewCount))
+			}
+			if createdAt, ok := user["created_at"].(string); ok {
+				metadata.JoinDate = createdAt
+			}
+		}
+	} else {
+		if displayName, ok := data["display_name"].(string); ok {
+			metadata.DisplayName = displayName
+		}
+		if login, ok := data["login"].(string); ok {
+			metadata.CustomFields["username"] = login
+		}
+		if description, ok := data["description"].(string); ok {
+			metadata.Bio = description
+		}
+		if profileImageURL, ok := data["profile_image_url"].(string); ok {
+			metadata.AvatarURL = profileImageURL
+		}
+		if broadcasterType, ok := data["broadcaster_type"].(string); ok {
+			metadata.CustomFields["broadcaster_type"] = broadcasterType
+			if broadcasterType == "partner" {
+				metadata.IsVerified = true
+			}
+		}
+		if viewCount, ok := data["view_count"].(float64); ok {
+			metadata.CustomFields["view_count"] = strconv.Itoa(int(viewCount))
+		}
+		if createdAt, ok := data["created_at"].(string); ok {
+			metadata.JoinDate = createdAt
+		}
+	}
+
+	return metadata
+}
+
+func extractMediumMetadata(responseText string, responseCode int) *ProfileMetadata {
+	jsonStartIdx := strings.Index(responseText, "{")
+	if jsonStartIdx == -1 {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText[jsonStartIdx:]), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if payload, ok := data["payload"].(map[string]interface{}); ok {
+		if user, ok := payload["user"].(map[string]interface{}); ok {
+			if name, ok := user["name"].(string); ok {
+				metadata.DisplayName = name
+			}
+			if username, ok := user["username"].(string); ok {
+				metadata.CustomFields["username"] = username
+			}
+			if bio, ok := user["bio"].(string); ok {
+				metadata.Bio = bio
+			}
+			if imageId, ok := user["imageId"].(string); ok {
+				metadata.AvatarURL = "https://miro.medium.com/fit/c/176/176/" + imageId
+			}
+			if followerCount, ok := user["socialStats"].(map[string]interface{}); ok {
+				if followers, ok := followerCount["followerCount"].(float64); ok {
+					metadata.FollowerCount = int(followers)
+				}
+				if following, ok := followerCount["followingCount"].(float64); ok {
+					metadata.FollowingCount = int(following)
+				}
+			}
+			if twitterScreenName, ok := user["twitterScreenName"].(string); ok && twitterScreenName != "" {
+				metadata.AdditionalLinks["twitter"] = "https://twitter.com/" + twitterScreenName
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractBehanceMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if user, ok := data["user"].(map[string]interface{}); ok {
+		if username, ok := user["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if displayName, ok := user["display_name"].(string); ok {
+			metadata.DisplayName = displayName
+		}
+		if firstName, ok := user["first_name"].(string); ok {
+			lastName, _ := user["last_name"].(string)
+			if metadata.DisplayName == "" {
+				metadata.DisplayName = firstName
+				if lastName != "" {
+					metadata.DisplayName += " " + lastName
+				}
+			}
+		}
+		if occupation, ok := user["occupation"].(string); ok {
+			metadata.CustomFields["occupation"] = occupation
+		}
+		if location, ok := user["location"].(string); ok {
+			metadata.Location = location
+		} else if city, ok := user["city"].(string); ok {
+			metadata.Location = city
+		}
+		if url, ok := user["url"].(string); ok {
+			metadata.Website = url
+		}
+		if images, ok := user["images"].(map[string]interface{}); ok {
+			if img276, ok := images["276"].(string); ok {
+				metadata.AvatarURL = img276
+			} else if img138, ok := images["138"].(string); ok {
+				metadata.AvatarURL = img138
+			}
+		}
+		if stats, ok := user["stats"].(map[string]interface{}); ok {
+			if followers, ok := stats["followers"].(float64); ok {
+				metadata.FollowerCount = int(followers)
+			}
+			if following, ok := stats["following"].(float64); ok {
+				metadata.FollowingCount = int(following)
+			}
+			if projectViews, ok := stats["project_views"].(float64); ok {
+				metadata.CustomFields["project_views"] = strconv.Itoa(int(projectViews))
+			}
+			if appreciations, ok := stats["appreciations"].(float64); ok {
+				metadata.CustomFields["appreciations"] = strconv.Itoa(int(appreciations))
+			}
+		}
+		if createdOn, ok := user["created_on"].(float64); ok {
+			metadata.JoinDate = strconv.FormatInt(int64(createdOn), 10)
+		}
+	} else {
+		if displayName, ok := data["display_name"].(string); ok {
+			metadata.DisplayName = displayName
+		}
+		if username, ok := data["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if occupation, ok := data["occupation"].(string); ok {
+			metadata.CustomFields["occupation"] = occupation
+		}
+		if location, ok := data["location"].(string); ok {
+			metadata.Location = location
+		}
+		if url, ok := data["url"].(string); ok {
+			metadata.Website = url
+		}
+		if followers, ok := data["followers"].(float64); ok {
+			metadata.FollowerCount = int(followers)
+		}
+	}
+
+	return metadata
+}
+
+func extractDribbbleMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if login, ok := data["login"].(string); ok {
+		metadata.CustomFields["username"] = login
+	}
+	if name, ok := data["name"].(string); ok {
+		metadata.DisplayName = name
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if avatarURL, ok := data["avatar_url"].(string); ok {
+		metadata.AvatarURL = avatarURL
+	}
+	if location, ok := data["location"].(string); ok {
+		metadata.Location = location
+	}
+	if htmlURL, ok := data["html_url"].(string); ok {
+		metadata.Website = htmlURL
+	}
+	if links, ok := data["links"].(map[string]interface{}); ok {
+		if web, ok := links["web"].(string); ok && web != "" {
+			metadata.Website = web
+		}
+		if twitter, ok := links["twitter"].(string); ok && twitter != "" {
+			metadata.AdditionalLinks["twitter"] = twitter
+		}
+	}
+	if followersCount, ok := data["followers_count"].(float64); ok {
+		metadata.FollowerCount = int(followersCount)
+	}
+	if followingsCount, ok := data["followings_count"].(float64); ok {
+		metadata.FollowingCount = int(followingsCount)
+	}
+	if createdAt, ok := data["created_at"].(string); ok {
+		metadata.JoinDate = createdAt
+	}
+	if pro, ok := data["pro"].(bool); ok {
+		metadata.IsVerified = pro
+	}
+	if shotsCount, ok := data["shots_count"].(float64); ok {
+		metadata.CustomFields["shots_count"] = strconv.Itoa(int(shotsCount))
+	}
+	if likesCount, ok := data["likes_count"].(float64); ok {
+		metadata.CustomFields["likes_count"] = strconv.Itoa(int(likesCount))
+	}
+
+	return metadata
+}
+
+func extractDeviantArtMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+	}
+	if usericon, ok := data["usericon"].(string); ok {
+		metadata.AvatarURL = usericon
+	}
+	if tagline, ok := data["tagline"].(string); ok {
+		metadata.Bio = tagline
+	}
+	if details, ok := data["details"].(map[string]interface{}); ok {
+		if realName, ok := details["real_name"].(string); ok {
+			metadata.DisplayName = realName
+		}
+	}
+	if stats, ok := data["stats"].(map[string]interface{}); ok {
+		if watchers, ok := stats["watchers"].(float64); ok {
+			metadata.FollowerCount = int(watchers)
+		}
+		if friends, ok := stats["friends"].(float64); ok {
+			metadata.FollowingCount = int(friends)
+		}
+		if pageviews, ok := stats["user_pageviews"].(float64); ok {
+			metadata.CustomFields["pageviews"] = strconv.Itoa(int(pageviews))
+		}
+		if deviations, ok := stats["user_deviations"].(float64); ok {
+			metadata.CustomFields["deviations"] = strconv.Itoa(int(deviations))
+		}
+	}
+	if profile, ok := data["profile"].(map[string]interface{}); ok {
+		if website, ok := profile["website"].(string); ok {
+			metadata.Website = website
+		}
+		if countryName, ok := profile["country_name"].(string); ok {
+			metadata.Location = countryName
+		}
+	}
+
+	return metadata
+}
+
+func extractSoundCloudMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+	}
+	if fullName, ok := data["full_name"].(string); ok {
+		metadata.DisplayName = fullName
+	}
+	if permalink, ok := data["permalink"].(string); ok {
+		metadata.CustomFields["permalink"] = permalink
+	}
+	if description, ok := data["description"].(string); ok {
+		metadata.Bio = description
+	}
+	if avatarURL, ok := data["avatar_url"].(string); ok {
+		metadata.AvatarURL = avatarURL
+	}
+	if city, ok := data["city"].(string); ok {
+		if country, ok := data["country"].(string); ok {
+			metadata.Location = city + ", " + country
+		} else {
+			metadata.Location = city
+		}
+	} else if country, ok := data["country"].(string); ok {
+		metadata.Location = country
+	}
+	if websiteURL, ok := data["website"].(string); ok {
+		metadata.Website = websiteURL
+	}
+	if website, ok := data["website_title"].(string); ok && website != "" {
+		metadata.CustomFields["website_title"] = website
+	}
+	if followersCount, ok := data["followers_count"].(float64); ok {
+		metadata.FollowerCount = int(followersCount)
+	}
+	if followingsCount, ok := data["followings_count"].(float64); ok {
+		metadata.FollowingCount = int(followingsCount)
+	}
+	if createdAt, ok := data["created_at"].(string); ok {
+		metadata.JoinDate = createdAt
+	}
+	if trackCount, ok := data["track_count"].(float64); ok {
+		metadata.CustomFields["track_count"] = strconv.Itoa(int(trackCount))
+	}
+	if playlistCount, ok := data["playlist_count"].(float64); ok {
+		metadata.CustomFields["playlist_count"] = strconv.Itoa(int(playlistCount))
+	}
+	if verified, ok := data["verified"].(bool); ok {
+		metadata.IsVerified = verified
+	}
+
+	return metadata
+}
+
+func extractSpotifyMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if displayName, ok := data["display_name"].(string); ok {
+		metadata.DisplayName = displayName
+	}
+	if id, ok := data["id"].(string); ok {
+		metadata.CustomFields["user_id"] = id
+	}
+	if uri, ok := data["uri"].(string); ok {
+		metadata.CustomFields["uri"] = uri
+	}
+	if href, ok := data["href"].(string); ok {
+		metadata.CustomFields["api_url"] = href
+	}
+	if externalURLs, ok := data["external_urls"].(map[string]interface{}); ok {
+		if spotifyURL, ok := externalURLs["spotify"].(string); ok {
+			metadata.Website = spotifyURL
+		}
+	}
+	if images, ok := data["images"].([]interface{}); ok && len(images) > 0 {
+		if img, ok := images[0].(map[string]interface{}); ok {
+			if url, ok := img["url"].(string); ok {
+				metadata.AvatarURL = url
+			}
+		}
+	}
+	if followers, ok := data["followers"].(map[string]interface{}); ok {
+		if total, ok := followers["total"].(float64); ok {
+			metadata.FollowerCount = int(total)
+		}
+	}
+	if accountType, ok := data["product"].(string); ok {
+		metadata.CustomFields["account_type"] = accountType
+	}
+	if country, ok := data["country"].(string); ok {
+		metadata.Location = country
+	}
+
+	return metadata
+}
+
+func extractSteamMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		CustomFields: make(map[string]string),
+	}
+
+	personaNameRe := regexp.MustCompile(`<span class="actual_persona_name">([^<]+)</span>`)
+	if matches := personaNameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = matches[1]
+	}
+
+	avatarRe := regexp.MustCompile(`<div class="playerAvatarAutoSizeInner"><img src="([^"]+)"`)
+	if matches := avatarRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	locationRe := regexp.MustCompile(`<div class="header_real_name ellipsis">.*?<bdi>([^<]+)</bdi>`)
+	if matches := locationRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Location = matches[1]
+	}
+
+	summaryRe := regexp.MustCompile(`<div class="profile_summary">([^<]+)</div>`)
+	if matches := summaryRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = strings.TrimSpace(matches[1])
+	}
+
+	levelRe := regexp.MustCompile(`<span class="friendPlayerLevelNum">(\d+)</span>`)
+	if matches := levelRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["level"] = matches[1]
+	}
+
+	badgeRe := regexp.MustCompile(`<span class="profile_count_link_total">(\d+)</span>`)
+	if matches := badgeRe.FindAllStringSubmatch(responseText, -1); len(matches) > 0 {
+		if len(matches) > 0 {
+			metadata.CustomFields["badges"] = matches[0][1]
+		}
+		if len(matches) > 1 {
+			metadata.CustomFields["games"] = matches[1][1]
+		}
+	}
+
+	return metadata
+}
+
+func extractDiscordMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	usernameRe := regexp.MustCompile(`<meta property="og:title" content="([^"]+)"`)
+	if matches := usernameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = matches[1]
+	}
+
+	avatarRe := regexp.MustCompile(`<meta property="og:image" content="([^"]+)"`)
+	if matches := avatarRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	bioRe := regexp.MustCompile(`<meta property="og:description" content="([^"]+)"`)
+	if matches := bioRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = matches[1]
+	}
+
+	return metadata
+}
+
+func extractTelegramMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	titleRe := regexp.MustCompile(`<div class="tgme_page_title"[^>]*>\s*<span[^>]*>([^<]+)</span>`)
+	if matches := titleRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = strings.TrimSpace(matches[1])
+	}
+
+	descRe := regexp.MustCompile(`<div class="tgme_page_description"[^>]*>([^<]+)</div>`)
+	if matches := descRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = strings.TrimSpace(matches[1])
+	}
+
+	avatarRe := regexp.MustCompile(`<img class="tgme_page_photo_image"[^>]*src="([^"]+)"`)
+	if matches := avatarRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	subscribersRe := regexp.MustCompile(`<div class="tgme_page_extra">([^<]+subscribers)`)
+	if matches := subscribersRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["subscribers"] = strings.TrimSpace(matches[1])
+	}
+
+	return metadata
+}
+
+func extractVKMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	if response, ok := data["response"].([]interface{}); ok && len(response) > 0 {
+		if user, ok := response[0].(map[string]interface{}); ok {
+			if firstName, ok := user["first_name"].(string); ok {
+				displayName := firstName
+				if lastName, ok := user["last_name"].(string); ok {
+					displayName += " " + lastName
+				}
+				metadata.DisplayName = displayName
+			}
+			if photo200, ok := user["photo_200"].(string); ok {
+				metadata.AvatarURL = photo200
+			} else if photo100, ok := user["photo_100"].(string); ok {
+				metadata.AvatarURL = photo100
+			}
+			if status, ok := user["status"].(string); ok && status != "" {
+				metadata.Bio = status
+			}
+			if city, ok := user["city"].(map[string]interface{}); ok {
+				if title, ok := city["title"].(string); ok {
+					metadata.Location = title
+				}
+			}
+			if verified, ok := user["verified"].(float64); ok && verified == 1 {
+				metadata.IsVerified = true
+			}
+			if followersCount, ok := user["followers_count"].(float64); ok {
+				metadata.FollowerCount = int(followersCount)
+			}
+			if site, ok := user["site"].(string); ok && site != "" {
+				metadata.Website = site
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractPatreonMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if dataObj, ok := data["data"].(map[string]interface{}); ok {
+		if attributes, ok := dataObj["attributes"].(map[string]interface{}); ok {
+			if name, ok := attributes["name"].(string); ok {
+				metadata.DisplayName = name
+			}
+			if vanity, ok := attributes["vanity"].(string); ok {
+				metadata.CustomFields["username"] = vanity
+			}
+			if summary, ok := attributes["summary"].(string); ok {
+				metadata.Bio = summary
+			}
+			if imageUrl, ok := attributes["image_url"].(string); ok {
+				metadata.AvatarURL = imageUrl
+			}
+			if url, ok := attributes["url"].(string); ok {
+				metadata.Website = url
+			}
+			if patronCount, ok := attributes["patron_count"].(float64); ok {
+				metadata.FollowerCount = int(patronCount)
+				metadata.CustomFields["patrons"] = strconv.Itoa(int(patronCount))
+			}
+			if createdAt, ok := attributes["created_at"].(string); ok {
+				metadata.JoinDate = createdAt
+			}
+			if isVerified, ok := attributes["is_verified"].(bool); ok {
+				metadata.IsVerified = isVerified
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractKofiMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	displayNameRe := regexp.MustCompile(`<h1[^>]*class="[^"]*kfds-font-bold[^"]*"[^>]*>([^<]+)</h1>`)
+	bioRe := regexp.MustCompile(`<p[^>]*class="[^"]*kfds-c-para[^"]*"[^>]*>([^<]+)</p>`)
+	avatarRe := regexp.MustCompile(`<img[^>]+src="([^"]+)"[^>]*alt="[^"]*avatar[^"]*"`)
+
+	ogTitleRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	ogDescRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+	ogImageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+
+	if matches := displayNameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = matches[1]
+	}
+	if matches := ogTitleRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.DisplayName == "" {
+		metadata.DisplayName = matches[1]
+	}
+
+	if matches := bioRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = matches[1]
+	}
+	if matches := ogDescRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.Bio == "" {
+		metadata.Bio = matches[1]
+	}
+
+	if matches := avatarRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+	if matches := ogImageRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.AvatarURL == "" {
+		metadata.AvatarURL = matches[1]
+	}
+
+	return metadata
+}
+
+func extractLinktreeMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	usernameRe := regexp.MustCompile(`"username"\s*:\s*"([^"]+)"`)
+	descriptionRe := regexp.MustCompile(`"description"\s*:\s*"([^"]+)"`)
+	profilePictureRe := regexp.MustCompile(`"profilePictureUrl"\s*:\s*"([^"]+)"`)
+
+	if matches := usernameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["username"] = matches[1]
+		metadata.DisplayName = matches[1]
+	}
+
+	if matches := descriptionRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = matches[1]
+	}
+
+	if matches := profilePictureRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	ogTitleRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	ogDescRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+	ogImageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+
+	if matches := ogTitleRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.DisplayName == metadata.CustomFields["username"] {
+		metadata.DisplayName = matches[1]
+	}
+	if matches := ogDescRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.Bio == "" {
+		metadata.Bio = matches[1]
+	}
+	if matches := ogImageRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.AvatarURL == "" {
+		metadata.AvatarURL = matches[1]
+	}
+
+	return metadata
+}
+
+func extractMyAnimeListMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+	}
+	if url, ok := data["url"].(string); ok {
+		metadata.Website = url
+	}
+	if picture, ok := data["picture"].(string); ok {
+		metadata.AvatarURL = picture
+	}
+	if birthday, ok := data["birthday"].(string); ok {
+		metadata.CustomFields["birthday"] = birthday
+	}
+	if location, ok := data["location"].(string); ok {
+		metadata.Location = location
+	}
+	if joinedAt, ok := data["joined_at"].(string); ok {
+		metadata.JoinDate = joinedAt
+	}
+	if statistics, ok := data["statistics"].(map[string]interface{}); ok {
+		if anime, ok := statistics["anime"].(map[string]interface{}); ok {
+			if watching, ok := anime["watching"].(float64); ok {
+				metadata.CustomFields["anime_watching"] = strconv.Itoa(int(watching))
+			}
+			if completed, ok := anime["completed"].(float64); ok {
+				metadata.CustomFields["anime_completed"] = strconv.Itoa(int(completed))
+			}
+		}
+		if manga, ok := statistics["manga"].(map[string]interface{}); ok {
+			if reading, ok := manga["reading"].(float64); ok {
+				metadata.CustomFields["manga_reading"] = strconv.Itoa(int(reading))
+			}
+			if completed, ok := manga["completed"].(float64); ok {
+				metadata.CustomFields["manga_completed"] = strconv.Itoa(int(completed))
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractHackerNewsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractStackOverflowMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields: make(map[string]string),
+	}
+
+	items, ok := data["items"].([]interface{})
+	if !ok || len(items) == 0 {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	user := items[0].(map[string]interface{})
+
+	if displayName, ok := user["display_name"].(string); ok {
+		metadata.DisplayName = displayName
+	}
+	if profileImage, ok := user["profile_image"].(string); ok {
+		metadata.AvatarURL = profileImage
+	}
+	if reputation, ok := user["reputation"].(float64); ok {
+		metadata.CustomFields["reputation"] = strconv.Itoa(int(reputation))
+	}
+	if creationDate, ok := user["creation_date"].(float64); ok {
+		metadata.JoinDate = strconv.FormatInt(int64(creationDate), 10)
+	}
+	if location, ok := user["location"].(string); ok {
+		metadata.Location = location
+	}
+	if websiteURL, ok := user["website_url"].(string); ok && websiteURL != "" {
+		metadata.Website = websiteURL
+	}
+	if aboutMe, ok := user["about_me"].(string); ok {
+		metadata.Bio = aboutMe
+	}
+	if badgeCounts, ok := user["badge_counts"].(map[string]interface{}); ok {
+		if gold, ok := badgeCounts["gold"].(float64); ok {
+			metadata.CustomFields["gold_badges"] = strconv.Itoa(int(gold))
+		}
+		if silver, ok := badgeCounts["silver"].(float64); ok {
+			metadata.CustomFields["silver_badges"] = strconv.Itoa(int(silver))
+		}
+		if bronze, ok := badgeCounts["bronze"].(float64); ok {
+			metadata.CustomFields["bronze_badges"] = strconv.Itoa(int(bronze))
+		}
+	}
+	if isEmployee, ok := user["is_employee"].(bool); ok && isEmployee {
+		metadata.CustomFields["is_employee"] = "true"
+	}
+
+	return metadata
+}
+
+func extractGitLabMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var dataArray []map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &dataArray); err != nil {
+		return nil
+	}
+
+	if len(dataArray) == 0 {
+		return nil
+	}
+
+	data := dataArray[0]
+	metadata := &ProfileMetadata{
+		CustomFields: make(map[string]string),
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+	}
+	if name, ok := data["name"].(string); ok {
+		metadata.DisplayName = name
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if avatarURL, ok := data["avatar_url"].(string); ok {
+		metadata.AvatarURL = avatarURL
+	}
+	if location, ok := data["location"].(string); ok {
+		metadata.Location = location
+	}
+	if websiteURL, ok := data["website_url"].(string); ok && websiteURL != "" {
+		metadata.Website = websiteURL
+	}
+	if createdAt, ok := data["created_at"].(string); ok {
+		metadata.JoinDate = createdAt
+	}
+	if publicEmail, ok := data["public_email"].(string); ok && publicEmail != "" {
+		metadata.CustomFields["public_email"] = publicEmail
+	}
+	if state, ok := data["state"].(string); ok {
+		metadata.CustomFields["state"] = state
+	}
+	if twitter, ok := data["twitter"].(string); ok && twitter != "" {
+		metadata.AdditionalLinks = make(map[string]string)
+		metadata.AdditionalLinks["twitter"] = "https://twitter.com/" + twitter
+	}
+	if linkedin, ok := data["linkedin"].(string); ok && linkedin != "" {
+		if metadata.AdditionalLinks == nil {
+			metadata.AdditionalLinks = make(map[string]string)
+		}
+		metadata.AdditionalLinks["linkedin"] = linkedin
+	}
+
+	return metadata
+}
+
+func extractBitbucketMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields: make(map[string]string),
+	}
+
+	values, ok := data["values"].([]interface{})
+	if !ok || len(values) == 0 {
+		if displayName, ok := data["display_name"].(string); ok {
+			metadata.DisplayName = displayName
+		}
+		if username, ok := data["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if createdOn, ok := data["created_on"].(string); ok {
+			metadata.JoinDate = createdOn
+		}
+		if location, ok := data["location"].(string); ok {
+			metadata.Location = location
+		}
+		if website, ok := data["website"].(string); ok && website != "" {
+			metadata.Website = website
+		}
+		if links, ok := data["links"].(map[string]interface{}); ok {
+			if avatar, ok := links["avatar"].(map[string]interface{}); ok {
+				if href, ok := avatar["href"].(string); ok {
+					metadata.AvatarURL = href
+				}
+			}
+		}
+		return metadata
+	}
+
+	firstRepo := values[0].(map[string]interface{})
+	if owner, ok := firstRepo["owner"].(map[string]interface{}); ok {
+		if displayName, ok := owner["display_name"].(string); ok {
+			metadata.DisplayName = displayName
+		}
+		if username, ok := owner["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if links, ok := owner["links"].(map[string]interface{}); ok {
+			if avatar, ok := links["avatar"].(map[string]interface{}); ok {
+				if href, ok := avatar["href"].(string); ok {
+					metadata.AvatarURL = href
+				}
+			}
+		}
+	}
+	metadata.CustomFields["repository_count"] = strconv.Itoa(len(values))
+
+	return metadata
+}
+
+func extractCodepenMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if dataMap, ok := data["data"].(map[string]interface{}); ok {
+		if username, ok := dataMap["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if name, ok := dataMap["name"].(string); ok {
+			metadata.DisplayName = name
+		}
+		if bio, ok := dataMap["bio"].(string); ok {
+			metadata.Bio = bio
+		}
+		if avatar, ok := dataMap["avatar"].(string); ok {
+			metadata.AvatarURL = avatar
+		}
+		if location, ok := dataMap["location"].(string); ok {
+			metadata.Location = location
+		}
+		if website, ok := dataMap["website"].(string); ok && website != "" {
+			metadata.Website = website
+		}
+		if followers, ok := dataMap["followers"].(float64); ok {
+			metadata.FollowerCount = int(followers)
+		}
+		if following, ok := dataMap["following"].(float64); ok {
+			metadata.FollowingCount = int(following)
+		}
+	}
+
+	return metadata
+}
+
+func extractFlickrMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if person, ok := data["person"].(map[string]interface{}); ok {
+		if username, ok := person["username"].(map[string]interface{}); ok {
+			if content, ok := username["_content"].(string); ok {
+				metadata.CustomFields["username"] = content
+			}
+		}
+		if realname, ok := person["realname"].(map[string]interface{}); ok {
+			if content, ok := realname["_content"].(string); ok {
+				metadata.DisplayName = content
+			}
+		}
+		if photosurl, ok := person["photosurl"].(map[string]interface{}); ok {
+			if content, ok := photosurl["_content"].(string); ok {
+				metadata.Website = content
+			}
+		}
+		if profileurl, ok := person["profileurl"].(map[string]interface{}); ok {
+			if content, ok := profileurl["_content"].(string); ok && metadata.Website == "" {
+				metadata.Website = content
+			}
+		}
+		if location, ok := person["location"].(map[string]interface{}); ok {
+			if content, ok := location["_content"].(string); ok {
+				metadata.Location = content
+			}
+		}
+		if description, ok := person["description"].(map[string]interface{}); ok {
+			if content, ok := description["_content"].(string); ok {
+				metadata.Bio = content
+			}
+		}
+		if iconfarm, ok := person["iconfarm"].(float64); ok {
+			if iconserver, ok := person["iconserver"].(string); ok {
+				if nsid, ok := person["nsid"].(string); ok {
+					metadata.AvatarURL = "https://farm" + strconv.Itoa(int(iconfarm)) + ".staticflickr.com/" + iconserver + "/buddyicons/" + nsid + ".jpg"
+				}
+			}
+		}
+		if photos, ok := person["photos"].(map[string]interface{}); ok {
+			if count, ok := photos["count"].(map[string]interface{}); ok {
+				if content, ok := count["_content"].(float64); ok {
+					metadata.CustomFields["photos_count"] = strconv.Itoa(int(content))
+				}
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractPinterestMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	jsonDataRe := regexp.MustCompile(`<script id="__PWS_DATA__" type="application/json">({.+?})</script>`)
+	if matches := jsonDataRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(matches[1]), &data); err == nil {
+			if props, ok := data["props"].(map[string]interface{}); ok {
+				if initialReduxState, ok := props["initialReduxState"].(map[string]interface{}); ok {
+					if users, ok := initialReduxState["users"].(map[string]interface{}); ok {
+						for _, userObj := range users {
+							if user, ok := userObj.(map[string]interface{}); ok {
+								if fullName, ok := user["full_name"].(string); ok {
+									metadata.DisplayName = fullName
+								}
+								if username, ok := user["username"].(string); ok {
+									metadata.CustomFields["username"] = username
+								}
+								if about, ok := user["about"].(string); ok {
+									metadata.Bio = about
+								}
+								if imageSmallURL, ok := user["image_small_url"].(string); ok {
+									metadata.AvatarURL = imageSmallURL
+								} else if imageMediumURL, ok := user["image_medium_url"].(string); ok {
+									metadata.AvatarURL = imageMediumURL
+								}
+								if followerCount, ok := user["follower_count"].(float64); ok {
+									metadata.FollowerCount = int(followerCount)
+								}
+								if followingCount, ok := user["following_count"].(float64); ok {
+									metadata.FollowingCount = int(followingCount)
+								}
+								if pinCount, ok := user["pin_count"].(float64); ok {
+									metadata.CustomFields["pin_count"] = strconv.Itoa(int(pinCount))
+								}
+								if boardCount, ok := user["board_count"].(float64); ok {
+									metadata.CustomFields["board_count"] = strconv.Itoa(int(boardCount))
+								}
+								if verified, ok := user["verified_identity"].(map[string]interface{}); ok {
+									if verified != nil {
+										metadata.IsVerified = true
+									}
+								}
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if metadata.DisplayName == "" {
+		ogTitleRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+		ogDescRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+		ogImageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+
+		if matches := ogTitleRe.FindStringSubmatch(responseText); len(matches) > 1 {
+			metadata.DisplayName = matches[1]
+		}
+		if matches := ogDescRe.FindStringSubmatch(responseText); len(matches) > 1 {
+			metadata.Bio = matches[1]
+		}
+		if matches := ogImageRe.FindStringSubmatch(responseText); len(matches) > 1 {
+			metadata.AvatarURL = matches[1]
+		}
+
+		followersRe := regexp.MustCompile(`([0-9,.KMB]+)\s+[Ff]ollowers`)
+		if matches := followersRe.FindStringSubmatch(responseText); len(matches) > 1 {
+			countStr := strings.ReplaceAll(matches[1], ",", "")
+			if strings.HasSuffix(countStr, "K") {
+				if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "K"), 64); err == nil {
+					metadata.FollowerCount = int(val * 1000)
+				}
+			} else if strings.HasSuffix(countStr, "M") {
+				if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "M"), 64); err == nil {
+					metadata.FollowerCount = int(val * 1000000)
+				}
+			} else {
+				if count, err := strconv.Atoi(countStr); err == nil {
+					metadata.FollowerCount = count
+				}
+			}
+		}
+
+		followingRe := regexp.MustCompile(`([0-9,.KMB]+)\s+[Ff]ollowing`)
+		if matches := followingRe.FindStringSubmatch(responseText); len(matches) > 1 {
+			countStr := strings.ReplaceAll(matches[1], ",", "")
+			if strings.HasSuffix(countStr, "K") {
+				if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "K"), 64); err == nil {
+					metadata.FollowingCount = int(val * 1000)
+				}
+			} else if strings.HasSuffix(countStr, "M") {
+				if val, err := strconv.ParseFloat(strings.TrimSuffix(countStr, "M"), 64); err == nil {
+					metadata.FollowingCount = int(val * 1000000)
+				}
+			} else {
+				if count, err := strconv.Atoi(countStr); err == nil {
+					metadata.FollowingCount = count
+				}
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractTumblrMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	response, ok := data["response"].(map[string]interface{})
+	if !ok {
+		return metadata
+	}
+
+	if blog, ok := response["blog"].(map[string]interface{}); ok {
+		if title, ok := blog["title"].(string); ok {
+			metadata.DisplayName = title
+		}
+		if name, ok := blog["name"].(string); ok {
+			metadata.CustomFields["username"] = name
+		}
+		if description, ok := blog["description"].(string); ok {
+			metadata.Bio = description
+		}
+		if url, ok := blog["url"].(string); ok {
+			metadata.Website = url
+		}
+		if avatar, ok := blog["avatar"].([]interface{}); ok && len(avatar) > 0 {
+			if avatarObj, ok := avatar[0].(map[string]interface{}); ok {
+				if avatarUrl, ok := avatarObj["url"].(string); ok {
+					metadata.AvatarURL = avatarUrl
+				}
+			}
+		}
+		if posts, ok := blog["posts"].(float64); ok {
+			metadata.CustomFields["posts"] = strconv.Itoa(int(posts))
+		}
+		if followers, ok := blog["followers"].(float64); ok {
+			metadata.FollowerCount = int(followers)
+		}
+		if updated, ok := blog["updated"].(float64); ok {
+			metadata.CustomFields["last_updated"] = strconv.FormatInt(int64(updated), 10)
+		}
+	}
+
+	return metadata
+}
+
+func extractWordPressMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if name, ok := data["name"].(string); ok {
+		metadata.DisplayName = name
+	}
+	if slug, ok := data["slug"].(string); ok {
+		metadata.CustomFields["username"] = slug
+	}
+	if description, ok := data["description"].(string); ok {
+		metadata.Bio = description
+	}
+	if url, ok := data["url"].(string); ok {
+		metadata.Website = url
+	}
+	if link, ok := data["link"].(string); ok && metadata.Website == "" {
+		metadata.Website = link
+	}
+	if avatarUrls, ok := data["avatar_urls"].(map[string]interface{}); ok {
+		if avatar96, ok := avatarUrls["96"].(string); ok {
+			metadata.AvatarURL = avatar96
+		} else if avatar48, ok := avatarUrls["48"].(string); ok {
+			metadata.AvatarURL = avatar48
+		}
+	}
+
+	return metadata
+}
+
+func extractBloggerMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if displayName, ok := data["displayName"].(string); ok {
+		metadata.DisplayName = displayName
+	}
+	if url, ok := data["url"].(string); ok {
+		metadata.Website = url
+	}
+	if aboutMe, ok := data["aboutMe"].(string); ok {
+		metadata.Bio = aboutMe
+	}
+	if image, ok := data["image"].(map[string]interface{}); ok {
+		if imageUrl, ok := image["url"].(string); ok {
+			metadata.AvatarURL = imageUrl
+		}
+	}
+	if blogs, ok := data["blogs"].(map[string]interface{}); ok {
+		if totalItems, ok := blogs["totalItems"].(float64); ok {
+			metadata.CustomFields["blogs_count"] = strconv.Itoa(int(totalItems))
+		}
+	}
+
+	return metadata
+}
+
+func extractSubstackMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	nameRe := regexp.MustCompile(`"name"\s*:\s*"([^"]+)"`)
+	bioRe := regexp.MustCompile(`"description"\s*:\s*"([^"]+)"`)
+	logoRe := regexp.MustCompile(`"logo_url"\s*:\s*"([^"]+)"`)
+	subscribersRe := regexp.MustCompile(`"total_subscriptions"\s*:\s*(\d+)`)
+	authorNameRe := regexp.MustCompile(`"author_name"\s*:\s*"([^"]+)"`)
+
+	if matches := nameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = matches[1]
+	}
+	if matches := authorNameRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.DisplayName == "" {
+		metadata.DisplayName = matches[1]
+	}
+	if matches := bioRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = matches[1]
+	}
+	if matches := logoRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+	if matches := subscribersRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		if count, err := strconv.Atoi(matches[1]); err == nil {
+			metadata.FollowerCount = count
+			metadata.CustomFields["subscribers"] = matches[1]
+		}
+	}
+
+	return metadata
+}
+
+func extractGoodreadsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	nameRe := regexp.MustCompile(`<name>([^<]+)</name>`)
+	userNameRe := regexp.MustCompile(`<user_name>([^<]+)</user_name>`)
+	aboutRe := regexp.MustCompile(`<about>([^<]+)</about>`)
+	imageRe := regexp.MustCompile(`<image_url>([^<]+)</image_url>`)
+	linkRe := regexp.MustCompile(`<link>([^<]+)</link>`)
+	friendsCountRe := regexp.MustCompile(`<friends_count[^>]*>(\d+)</friends_count>`)
+	booksCountRe := regexp.MustCompile(`<reviews_count[^>]*>(\d+)</reviews_count>`)
+
+	if matches := nameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = matches[1]
+	}
+	if matches := userNameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["username"] = matches[1]
+	}
+	if matches := aboutRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = matches[1]
+	}
+	if matches := imageRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+	if matches := linkRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Website = matches[1]
+	}
+	if matches := friendsCountRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		if count, err := strconv.Atoi(matches[1]); err == nil {
+			metadata.FollowerCount = count
+			metadata.CustomFields["friends"] = matches[1]
+		}
+	}
+	if matches := booksCountRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["reviews"] = matches[1]
+	}
+
+	return metadata
+}
+
+func extractLastFmMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if user, ok := data["user"].(map[string]interface{}); ok {
+		if name, ok := user["name"].(string); ok {
+			metadata.CustomFields["username"] = name
+		}
+		if realname, ok := user["realname"].(string); ok {
+			metadata.DisplayName = realname
+		}
+		if bio, ok := user["bio"].(map[string]interface{}); ok {
+			if content, ok := bio["content"].(string); ok {
+				metadata.Bio = content
+			}
+		}
+		if images, ok := user["image"].([]interface{}); ok {
+			for _, img := range images {
+				if imgMap, ok := img.(map[string]interface{}); ok {
+					if size, ok := imgMap["size"].(string); ok && (size == "extralarge" || size == "large") {
+						if url, ok := imgMap["#text"].(string); ok && url != "" {
+							metadata.AvatarURL = url
+							break
+						}
+					}
+				}
+			}
+			if metadata.AvatarURL == "" && len(images) > 0 {
+				if imgMap, ok := images[len(images)-1].(map[string]interface{}); ok {
+					if url, ok := imgMap["#text"].(string); ok {
+						metadata.AvatarURL = url
+					}
+				}
+			}
+		}
+		if country, ok := user["country"].(string); ok {
+			metadata.Location = country
+		}
+		if url, ok := user["url"].(string); ok {
+			metadata.Website = url
+		}
+		if registered, ok := user["registered"].(map[string]interface{}); ok {
+			if unixtime, ok := registered["unixtime"].(string); ok {
+				metadata.JoinDate = unixtime
+			} else if unixtime, ok := registered["#text"].(string); ok {
+				metadata.JoinDate = unixtime
+			}
+		}
+		if playcount, ok := user["playcount"].(string); ok {
+			metadata.CustomFields["playcount"] = playcount
+		}
+		if playlists, ok := user["playlists"].(string); ok {
+			metadata.CustomFields["playlists"] = playlists
+		}
+		if subscriber, ok := user["subscriber"].(string); ok {
+			metadata.CustomFields["subscriber"] = subscriber
+		}
+	}
+
+	return metadata
+}
+
+func extractBandcampMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	nameRe := regexp.MustCompile(`<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']`)
+	descRe := regexp.MustCompile(`<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']`)
+	imageRe := regexp.MustCompile(`<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']`)
+	urlRe := regexp.MustCompile(`<meta\s+property=["']og:url["']\s+content=["']([^"']+)["']`)
+	siteNameRe := regexp.MustCompile(`<meta\s+property=["']og:site_name["']\s+content=["']([^"']+)["']`)
+	locationRe := regexp.MustCompile(`<span\s+class=["']location["'][^>]*>([^<]+)</span>`)
+
+	if matches := nameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = matches[1]
+	}
+	if matches := descRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = matches[1]
+	}
+	if matches := imageRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+	if matches := urlRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Website = matches[1]
+	}
+	if matches := siteNameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["site_name"] = matches[1]
+	}
+	if matches := locationRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Location = strings.TrimSpace(matches[1])
+	}
+
+	return metadata
+}
+
+func extractItchIoMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractProductHuntMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractAngelListMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCrunchbaseMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractQuoraMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractAboutMeMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractKeybaseMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	them, ok := data["them"].([]interface{})
+	if !ok || len(them) == 0 {
+		return nil
+	}
+
+	user := them[0].(map[string]interface{})
+
+	if basics, ok := user["basics"].(map[string]interface{}); ok {
+		if username, ok := basics["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if ctime, ok := basics["ctime"].(float64); ok {
+			metadata.JoinDate = strconv.FormatInt(int64(ctime), 10)
+		}
+	}
+
+	if profile, ok := user["profile"].(map[string]interface{}); ok {
+		if fullName, ok := profile["full_name"].(string); ok {
+			metadata.DisplayName = fullName
+		}
+		if bio, ok := profile["bio"].(string); ok {
+			metadata.Bio = bio
+		}
+		if location, ok := profile["location"].(string); ok {
+			metadata.Location = location
+		}
+	}
+
+	if pictures, ok := user["pictures"].(map[string]interface{}); ok {
+		if primary, ok := pictures["primary"].(map[string]interface{}); ok {
+			if url, ok := primary["url"].(string); ok {
+				metadata.AvatarURL = url
+			}
+		}
+	}
+
+	if proofsSummary, ok := user["proofs_summary"].(map[string]interface{}); ok {
+		if all, ok := proofsSummary["all"].([]interface{}); ok {
+			for _, proof := range all {
+				if p, ok := proof.(map[string]interface{}); ok {
+					if proofType, ok := p["proof_type"].(string); ok {
+						if nametag, ok := p["nametag"].(string); ok {
+							metadata.AdditionalLinks[proofType] = nametag
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractNextdoorMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractMeetupMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractFoursquareMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractYelpMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractZillowMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractHouzzMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractVimeoMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if name, ok := data["name"].(string); ok {
+		metadata.DisplayName = name
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if link, ok := data["link"].(string); ok {
+		metadata.Website = link
+	}
+	if location, ok := data["location"].(string); ok {
+		metadata.Location = location
+	}
+	if pictures, ok := data["pictures"].(map[string]interface{}); ok {
+		if sizes, ok := pictures["sizes"].([]interface{}); ok && len(sizes) > 0 {
+			if lastSize, ok := sizes[len(sizes)-1].(map[string]interface{}); ok {
+				if linkURL, ok := lastSize["link"].(string); ok {
+					metadata.AvatarURL = linkURL
+				}
+			}
+		}
+	}
+	if createdTime, ok := data["created_time"].(string); ok {
+		metadata.JoinDate = createdTime
+	}
+	if metadata_obj, ok := data["metadata"].(map[string]interface{}); ok {
+		if connections, ok := metadata_obj["connections"].(map[string]interface{}); ok {
+			if followers, ok := connections["followers"].(map[string]interface{}); ok {
+				if total, ok := followers["total"].(float64); ok {
+					metadata.FollowerCount = int(total)
+				}
+			}
+			if following, ok := connections["following"].(map[string]interface{}); ok {
+				if total, ok := following["total"].(float64); ok {
+					metadata.FollowingCount = int(total)
+				}
+			}
+			if videos, ok := connections["videos"].(map[string]interface{}); ok {
+				if total, ok := videos["total"].(float64); ok {
+					metadata.CustomFields["videos_count"] = strconv.Itoa(int(total))
+				}
+			}
+			if likes, ok := connections["likes"].(map[string]interface{}); ok {
+				if total, ok := likes["total"].(float64); ok {
+					metadata.CustomFields["likes_count"] = strconv.Itoa(int(total))
+				}
+			}
+		}
+	}
+	if websites, ok := data["websites"].([]interface{}); ok && len(websites) > 0 {
+		if website, ok := websites[0].(map[string]interface{}); ok {
+			if link, ok := website["link"].(string); ok {
+				if metadata.Website == "" {
+					metadata.Website = link
+				} else {
+					metadata.AdditionalLinks["website"] = link
+				}
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractDailymotionMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if screenname, ok := data["screenname"].(string); ok {
+		metadata.DisplayName = screenname
+	}
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+	}
+	if description, ok := data["description"].(string); ok {
+		metadata.Bio = description
+	}
+	if avatarURL, ok := data["avatar_url"].(string); ok {
+		metadata.AvatarURL = avatarURL
+	} else if avatar120URL, ok := data["avatar_120_url"].(string); ok {
+		metadata.AvatarURL = avatar120URL
+	} else if avatar80URL, ok := data["avatar_80_url"].(string); ok {
+		metadata.AvatarURL = avatar80URL
+	}
+	if country, ok := data["country"].(string); ok {
+		metadata.Location = country
+	}
+	if url, ok := data["url"].(string); ok {
+		metadata.Website = url
+	}
+	if createdTime, ok := data["created_time"].(float64); ok {
+		metadata.JoinDate = strconv.FormatInt(int64(createdTime), 10)
+	}
+	if followersCount, ok := data["followers_count"].(float64); ok {
+		metadata.FollowerCount = int(followersCount)
+	}
+	if followingCount, ok := data["following_count"].(float64); ok {
+		metadata.FollowingCount = int(followingCount)
+	}
+	if videosTotal, ok := data["videos_total"].(float64); ok {
+		metadata.CustomFields["videos_total"] = strconv.Itoa(int(videosTotal))
+	}
+	if viewsTotal, ok := data["views_total"].(float64); ok {
+		metadata.CustomFields["views_total"] = strconv.Itoa(int(viewsTotal))
+	}
+	if verified, ok := data["verified"].(bool); ok {
+		metadata.IsVerified = verified
+	}
+
+	return metadata
+}
+
+func extractRumbleMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	nameRe := regexp.MustCompile(`<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']`)
+	descRe := regexp.MustCompile(`<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']`)
+	imageRe := regexp.MustCompile(`<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']`)
+	urlRe := regexp.MustCompile(`<meta\s+property=["']og:url["']\s+content=["']([^"']+)["']`)
+	subscribersRe := regexp.MustCompile(`([0-9,]+)\s+[Ss]ubscribers?`)
+	videosRe := regexp.MustCompile(`([0-9,]+)\s+[Vv]ideos?`)
+	followersRe := regexp.MustCompile(`([0-9,]+)\s+[Ff]ollowers?`)
+
+	if matches := nameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = matches[1]
+	}
+	if matches := descRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = matches[1]
+	}
+	if matches := imageRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+	if matches := urlRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Website = matches[1]
+	}
+
+	if matches := subscribersRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		countStr := strings.ReplaceAll(matches[1], ",", "")
+		if count, err := strconv.Atoi(countStr); err == nil {
+			metadata.FollowerCount = count
+		}
+	} else if matches := followersRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		countStr := strings.ReplaceAll(matches[1], ",", "")
+		if count, err := strconv.Atoi(countStr); err == nil {
+			metadata.FollowerCount = count
+		}
+	}
+
+	if matches := videosRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["videos"] = strings.ReplaceAll(matches[1], ",", "")
+	}
+
+	return metadata
+}
+
+func extractSnapchatMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractWeChatMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractWhatsAppBusinessMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractSignalMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractSlackMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractMicrosoftTeamsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractZoomMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractClubhouseMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractHiveSocialMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractBlueskyMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractThreadsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractLemmyMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractKbinMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractArtStationMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+	}
+	if fullName, ok := data["full_name"].(string); ok {
+		metadata.DisplayName = fullName
+	}
+	if headline, ok := data["headline"].(string); ok {
+		metadata.Bio = headline
+	}
+	if mediumAvatarURL, ok := data["medium_avatar_url"].(string); ok {
+		metadata.AvatarURL = mediumAvatarURL
+	} else if smallCoverURL, ok := data["small_cover_url"].(string); ok {
+		metadata.AvatarURL = smallCoverURL
+	}
+	if country, ok := data["country"].(string); ok {
+		metadata.Location = country
+	}
+	if city, ok := data["city"].(string); ok {
+		if metadata.Location != "" {
+			metadata.Location = city + ", " + metadata.Location
+		} else {
+			metadata.Location = city
+		}
+	}
+	if permalink, ok := data["permalink"].(string); ok {
+		metadata.Website = "https://www.artstation.com/" + permalink
+	}
+	if followersCount, ok := data["followers_count"].(float64); ok {
+		metadata.FollowerCount = int(followersCount)
+	}
+	if followingCount, ok := data["following_count"].(float64); ok {
+		metadata.FollowingCount = int(followingCount)
+	}
+	if likesCount, ok := data["likes_count"].(float64); ok {
+		metadata.CustomFields["likes_count"] = strconv.Itoa(int(likesCount))
+	}
+	if projectsCount, ok := data["projects_count"].(float64); ok {
+		metadata.CustomFields["projects_count"] = strconv.Itoa(int(projectsCount))
+	}
+
+	return metadata
+}
+
+func extractCohostMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPixivMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if body, ok := data["body"].(map[string]interface{}); ok {
+		if name, ok := body["name"].(string); ok {
+			metadata.DisplayName = name
+		}
+		if imageBig, ok := body["imageBig"].(string); ok {
+			metadata.AvatarURL = imageBig
+		} else if image, ok := body["image"].(string); ok {
+			metadata.AvatarURL = image
+		}
+		if comment, ok := body["comment"].(string); ok {
+			metadata.Bio = comment
+		}
+		if webpage, ok := body["webpage"].(string); ok {
+			metadata.Website = webpage
+		}
+		if region, ok := body["region"].(map[string]interface{}); ok {
+			if name, ok := region["name"].(string); ok {
+				metadata.Location = name
+			}
+		}
+		if following, ok := body["following"].(float64); ok {
+			metadata.FollowingCount = int(following)
+		}
+		if userId, ok := body["userId"].(string); ok {
+			metadata.CustomFields["user_id"] = userId
+		}
+	}
+	if user, ok := data["user"].(map[string]interface{}); ok {
+		if name, ok := user["name"].(string); ok && metadata.DisplayName == "" {
+			metadata.DisplayName = name
+		}
+		if profileImageUrls, ok := user["profile_image_urls"].(map[string]interface{}); ok {
+			if medium, ok := profileImageUrls["medium"].(string); ok && metadata.AvatarURL == "" {
+				metadata.AvatarURL = medium
+			}
+		}
+		if comment, ok := user["comment"].(string); ok && metadata.Bio == "" {
+			metadata.Bio = comment
+		}
+	}
+
+	return metadata
+}
+
+func extractNewgroundsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	artistNameRe := regexp.MustCompile(`<h1[^>]*>([^<]+)</h1>`)
+	if matches := artistNameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = strings.TrimSpace(matches[1])
+	}
+
+	bioRe := regexp.MustCompile(`<div[^>]*class="[^"]*user-bio[^"]*"[^>]*>([^<]+)</div>`)
+	if matches := bioRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = strings.TrimSpace(matches[1])
+	}
+
+	avatarRe := regexp.MustCompile(`<img[^>]*class="[^"]*user-icon[^"]*"[^>]*src="([^"]+)"`)
+	if matches := avatarRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	submissionsRe := regexp.MustCompile(`<span[^>]*class="[^"]*submission-count[^"]*"[^>]*>([0-9,]+)</span>`)
+	if matches := submissionsRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["submissions"] = strings.ReplaceAll(matches[1], ",", "")
+	}
+
+	fansRe := regexp.MustCompile(`<span[^>]*class="[^"]*fans[^"]*"[^>]*>([0-9,]+)</span>`)
+	if matches := fansRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.FollowerCount = parseCount(strings.ReplaceAll(matches[1], ",", ""))
+	}
+
+	ogTitleRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	if matches := ogTitleRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.DisplayName == "" {
+		metadata.DisplayName = matches[1]
+	}
+
+	ogDescRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+	if matches := ogDescRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.Bio == "" {
+		metadata.Bio = matches[1]
+	}
+
+	ogImageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+	if matches := ogImageRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.AvatarURL == "" {
+		metadata.AvatarURL = matches[1]
+	}
+
+	return metadata
+}
+
+func parseCount(s string) int {
+	if val, err := strconv.Atoi(s); err == nil {
+		return val
+	}
+	return 0
+}
+
+func extract500pxMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if user, ok := data["user"].(map[string]interface{}); ok {
+		if username, ok := user["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if fullname, ok := user["fullname"].(string); ok {
+			metadata.DisplayName = fullname
+		}
+		if about, ok := user["about"].(string); ok {
+			metadata.Bio = about
+		}
+		if userpicHTTPSURL, ok := user["userpic_https_url"].(string); ok {
+			metadata.AvatarURL = userpicHTTPSURL
+		} else if userpicURL, ok := user["userpic_url"].(string); ok {
+			metadata.AvatarURL = userpicURL
+		}
+		if city, ok := user["city"].(string); ok {
+			metadata.Location = city
+		}
+		if country, ok := user["country"].(string); ok {
+			if metadata.Location != "" {
+				metadata.Location += ", " + country
+			} else {
+				metadata.Location = country
+			}
+		}
+		if followersCount, ok := user["followers_count"].(float64); ok {
+			metadata.FollowerCount = int(followersCount)
+		}
+		if friendsCount, ok := user["friends_count"].(float64); ok {
+			metadata.FollowingCount = int(friendsCount)
+		}
+		if affection, ok := user["affection"].(float64); ok {
+			metadata.CustomFields["affection"] = strconv.Itoa(int(affection))
+		}
+		if photosCount, ok := user["photos_count"].(float64); ok {
+			metadata.CustomFields["photos_count"] = strconv.Itoa(int(photosCount))
+		}
+	}
+	if username, ok := data["username"].(string); ok && metadata.CustomFields["username"] == "" {
+		metadata.CustomFields["username"] = username
+	}
+	if fullname, ok := data["fullname"].(string); ok && metadata.DisplayName == "" {
+		metadata.DisplayName = fullname
+	}
+
+	return metadata
+}
+
+func extractUnsplashMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+	}
+	if name, ok := data["name"].(string); ok {
+		metadata.DisplayName = name
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if location, ok := data["location"].(string); ok {
+		metadata.Location = location
+	}
+	if portfolioURL, ok := data["portfolio_url"].(string); ok && portfolioURL != "" {
+		metadata.Website = portfolioURL
+	}
+	if profileImage, ok := data["profile_image"].(map[string]interface{}); ok {
+		if large, ok := profileImage["large"].(string); ok {
+			metadata.AvatarURL = large
+		} else if medium, ok := profileImage["medium"].(string); ok {
+			metadata.AvatarURL = medium
+		}
+	}
+	if totalLikes, ok := data["total_likes"].(float64); ok {
+		metadata.CustomFields["total_likes"] = strconv.Itoa(int(totalLikes))
+	}
+	if totalPhotos, ok := data["total_photos"].(float64); ok {
+		metadata.CustomFields["total_photos"] = strconv.Itoa(int(totalPhotos))
+	}
+	if totalCollections, ok := data["total_collections"].(float64); ok {
+		metadata.CustomFields["total_collections"] = strconv.Itoa(int(totalCollections))
+	}
+	if followersCount, ok := data["followers_count"].(float64); ok {
+		metadata.FollowerCount = int(followersCount)
+	}
+	if followingCount, ok := data["following_count"].(float64); ok {
+		metadata.FollowingCount = int(followingCount)
+	}
+	if downloads, ok := data["downloads"].(float64); ok {
+		metadata.CustomFields["downloads"] = strconv.Itoa(int(downloads))
+	}
+	if social, ok := data["social"].(map[string]interface{}); ok {
+		if instagramUsername, ok := social["instagram_username"].(string); ok && instagramUsername != "" {
+			metadata.AdditionalLinks["instagram"] = "https://instagram.com/" + instagramUsername
+		}
+		if twitterUsername, ok := social["twitter_username"].(string); ok && twitterUsername != "" {
+			metadata.AdditionalLinks["twitter"] = "https://twitter.com/" + twitterUsername
+		}
+	}
+
+	return metadata
+}
+
+func extractVSCOMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if user, ok := data["user"].(map[string]interface{}); ok {
+		if siteID, ok := user["site_id"].(string); ok {
+			metadata.CustomFields["site_id"] = siteID
+		}
+		if description, ok := user["description"].(string); ok {
+			metadata.DisplayName = description
+		}
+		if bio, ok := user["bio"].(string); ok {
+			metadata.Bio = bio
+		}
+		if profileImage, ok := user["profile_image"].(string); ok {
+			metadata.AvatarURL = profileImage
+		}
+	}
+	if site, ok := data["site"].(map[string]interface{}); ok {
+		if name, ok := site["name"].(string); ok && metadata.DisplayName == "" {
+			metadata.DisplayName = name
+		}
+		if description, ok := site["description"].(string); ok && metadata.Bio == "" {
+			metadata.Bio = description
+		}
+		if profileImage, ok := site["responsive_url"].(string); ok && metadata.AvatarURL == "" {
+			metadata.AvatarURL = profileImage
+		}
+	}
+	if media, ok := data["media"].([]interface{}); ok {
+		metadata.CustomFields["media_count"] = strconv.Itoa(len(media))
+	}
+
+	return metadata
+}
+
+func extractStravaMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	nameRe := regexp.MustCompile(`<h1 class="[^"]*">([^<]+)</h1>`)
+	if matches := nameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = strings.TrimSpace(matches[1])
+	}
+
+	avatarRe := regexp.MustCompile(`<div class="avatar[^"]*"[^>]*style="background-image: url\('([^']+)'\)"`)
+	if matches := avatarRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	locationRe := regexp.MustCompile(`<div class="location">([^<]+)</div>`)
+	if matches := locationRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Location = strings.TrimSpace(matches[1])
+	}
+
+	followersRe := regexp.MustCompile(`<div class="[^"]*followers[^"]*">.*?<span>([^<]+)</span>`)
+	if matches := followersRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["followers"] = strings.TrimSpace(matches[1])
+	}
+
+	followingRe := regexp.MustCompile(`<div class="[^"]*following[^"]*">.*?<span>([^<]+)</span>`)
+	if matches := followingRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["following"] = strings.TrimSpace(matches[1])
+	}
+
+	activitiesRe := regexp.MustCompile(`<div class="[^"]*activities[^"]*">.*?<span>([^<]+)</span>`)
+	if matches := activitiesRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["activities"] = strings.TrimSpace(matches[1])
+	}
+
+	return metadata
+}
+
+func extractMyFitnessPalMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	usernameRe := regexp.MustCompile(`<h1[^>]*>([^<]+)</h1>`)
+	if matches := usernameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = strings.TrimSpace(matches[1])
+	}
+
+	avatarRe := regexp.MustCompile(`<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"`)
+	if matches := avatarRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	bioRe := regexp.MustCompile(`<div class="[^"]*about[^"]*">([^<]+)</div>`)
+	if matches := bioRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = strings.TrimSpace(matches[1])
+	}
+
+	locationRe := regexp.MustCompile(`<div class="[^"]*location[^"]*">([^<]+)</div>`)
+	if matches := locationRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Location = strings.TrimSpace(matches[1])
+	}
+
+	weightLossRe := regexp.MustCompile(`<div class="[^"]*weight-loss[^"]*">([^<]+)</div>`)
+	if matches := weightLossRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["weight_loss"] = strings.TrimSpace(matches[1])
+	}
+
+	return metadata
+}
+
+func extractDuolingoMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	if users, ok := data["users"].([]interface{}); ok && len(users) > 0 {
+		if user, ok := users[0].(map[string]interface{}); ok {
+			if username, ok := user["username"].(string); ok {
+				metadata.CustomFields["username"] = username
+				metadata.DisplayName = username
+			}
+			if name, ok := user["name"].(string); ok && name != "" {
+				metadata.DisplayName = name
+			}
+			if bio, ok := user["bio"].(string); ok {
+				metadata.Bio = bio
+			}
+			if picture, ok := user["picture"].(string); ok {
+				metadata.AvatarURL = picture
+			}
+			if totalXp, ok := user["totalXp"].(float64); ok {
+				metadata.CustomFields["total_xp"] = strconv.Itoa(int(totalXp))
+			}
+			if lingots, ok := user["lingots"].(float64); ok {
+				metadata.CustomFields["lingots"] = strconv.Itoa(int(lingots))
+			}
+			if streak, ok := user["streak"].(float64); ok {
+				metadata.CustomFields["streak"] = strconv.Itoa(int(streak))
+			}
+			if learningLanguage, ok := user["learningLanguage"].(string); ok {
+				metadata.CustomFields["learning_language"] = learningLanguage
+			}
+			if courses, ok := user["courses"].([]interface{}); ok {
+				var languages []string
+				for _, course := range courses {
+					if courseMap, ok := course.(map[string]interface{}); ok {
+						if langName, ok := courseMap["title"].(string); ok {
+							languages = append(languages, langName)
+						}
+					}
+				}
+				if len(languages) > 0 {
+					metadata.CustomFields["languages"] = strings.Join(languages, ", ")
+				}
+			}
+		}
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+		if metadata.DisplayName == "" {
+			metadata.DisplayName = username
+		}
+	}
+	if name, ok := data["name"].(string); ok && name != "" {
+		metadata.DisplayName = name
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if picture, ok := data["picture"].(string); ok {
+		metadata.AvatarURL = picture
+	}
+	if totalXp, ok := data["totalXp"].(float64); ok {
+		metadata.CustomFields["total_xp"] = strconv.Itoa(int(totalXp))
+	}
+	if streak, ok := data["streak"].(float64); ok {
+		metadata.CustomFields["streak"] = strconv.Itoa(int(streak))
+	}
+
+	return metadata
+}
+
+func extractKhanAcademyMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+		metadata.DisplayName = username
+	}
+	if nickname, ok := data["nickname"].(string); ok && nickname != "" {
+		metadata.DisplayName = nickname
+	}
+	if avatarUrl, ok := data["avatarUrl"].(string); ok {
+		metadata.AvatarURL = avatarUrl
+	} else if avatar, ok := data["avatar"].(map[string]interface{}); ok {
+		if url, ok := avatar["imageSrc"].(string); ok {
+			metadata.AvatarURL = url
+		}
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if points, ok := data["points"].(float64); ok {
+		metadata.CustomFields["points"] = strconv.Itoa(int(points))
+	}
+	if joined, ok := data["joined"].(string); ok {
+		metadata.JoinDate = joined
+	}
+	if badges, ok := data["badgeCounts"].(map[string]interface{}); ok {
+		var totalBadges int
+		for _, count := range badges {
+			if c, ok := count.(float64); ok {
+				totalBadges += int(c)
+			}
+		}
+		if totalBadges > 0 {
+			metadata.CustomFields["badges"] = strconv.Itoa(totalBadges)
+		}
+	}
+	if countVideosCompleted, ok := data["countVideosCompleted"].(float64); ok {
+		metadata.CustomFields["videos_completed"] = strconv.Itoa(int(countVideosCompleted))
+	}
+
+	return metadata
+}
+
+func extractCourseraMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	if fullName, ok := data["fullName"].(string); ok {
+		metadata.DisplayName = fullName
+	}
+	if firstName, ok := data["firstName"].(string); ok {
+		if lastName, ok := data["lastName"].(string); ok {
+			if metadata.DisplayName == "" {
+				metadata.DisplayName = firstName + " " + lastName
+			}
+		} else if metadata.DisplayName == "" {
+			metadata.DisplayName = firstName
+		}
+	}
+	if photoUrl, ok := data["photoUrl"].(string); ok {
+		metadata.AvatarURL = photoUrl
+	} else if photo, ok := data["photo"].(string); ok {
+		metadata.AvatarURL = photo
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if headline, ok := data["headline"].(string); ok && metadata.Bio == "" {
+		metadata.Bio = headline
+	}
+	if location, ok := data["location"].(string); ok {
+		metadata.Location = location
+	}
+	if institution, ok := data["institution"].(string); ok {
+		metadata.CustomFields["institution"] = institution
+	}
+	if coursesCompleted, ok := data["coursesCompleted"].(float64); ok {
+		metadata.CustomFields["courses_completed"] = strconv.Itoa(int(coursesCompleted))
+	}
+	if specializations, ok := data["specializations"].(float64); ok {
+		metadata.CustomFields["specializations"] = strconv.Itoa(int(specializations))
+	}
+	if certificates, ok := data["certificates"].(float64); ok {
+		metadata.CustomFields["certificates"] = strconv.Itoa(int(certificates))
+	}
+
+	return metadata
+}
+
+func extractUdemyMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	if displayName, ok := data["display_name"].(string); ok {
+		metadata.DisplayName = displayName
+	} else if name, ok := data["name"].(string); ok {
+		metadata.DisplayName = name
+	} else if title, ok := data["title"].(string); ok {
+		metadata.DisplayName = title
+	}
+	if imageUrl, ok := data["image_url"].(string); ok {
+		metadata.AvatarURL = imageUrl
+	} else if image, ok := data["image"].(string); ok {
+		metadata.AvatarURL = image
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	} else if description, ok := data["description"].(string); ok {
+		metadata.Bio = description
+	}
+	if headline, ok := data["headline"].(string); ok && metadata.Bio == "" {
+		metadata.Bio = headline
+	}
+	if url, ok := data["url"].(string); ok {
+		metadata.Website = url
+	}
+	if jobTitle, ok := data["job_title"].(string); ok {
+		metadata.CustomFields["job_title"] = jobTitle
+	}
+	if totalStudents, ok := data["total_students"].(float64); ok {
+		metadata.CustomFields["students"] = strconv.Itoa(int(totalStudents))
+	}
+	if totalReviews, ok := data["total_reviews"].(float64); ok {
+		metadata.CustomFields["reviews"] = strconv.Itoa(int(totalReviews))
+	}
+	if avgRating, ok := data["avg_rating"].(float64); ok {
+		metadata.CustomFields["avg_rating"] = strconv.FormatFloat(avgRating, 'f', 2, 64)
+	}
+	if numCourses, ok := data["num_courses"].(float64); ok {
+		metadata.CustomFields["courses"] = strconv.Itoa(int(numCourses))
+	} else if totalCourses, ok := data["total_courses"].(float64); ok {
+		metadata.CustomFields["courses"] = strconv.Itoa(int(totalCourses))
+	}
+	if followers, ok := data["followers"].(float64); ok {
+		metadata.FollowerCount = int(followers)
+	}
+
+	return metadata
+}
+
+func extractEdXMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+		metadata.DisplayName = username
+	}
+	if name, ok := data["name"].(string); ok && name != "" {
+		metadata.DisplayName = name
+	}
+	if profileImage, ok := data["profile_image"].(map[string]interface{}); ok {
+		if hasImage, ok := profileImage["has_image"].(bool); ok && hasImage {
+			if imageUrlLarge, ok := profileImage["image_url_large"].(string); ok {
+				metadata.AvatarURL = imageUrlLarge
+			} else if imageUrlMedium, ok := profileImage["image_url_medium"].(string); ok {
+				metadata.AvatarURL = imageUrlMedium
+			}
+		}
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if accountPrivacy, ok := data["account_privacy"].(string); ok {
+		metadata.CustomFields["account_privacy"] = accountPrivacy
+	}
+	if country, ok := data["country"].(string); ok {
+		metadata.Location = country
+	}
+	if levelOfEducation, ok := data["level_of_education"].(string); ok {
+		metadata.CustomFields["level_of_education"] = levelOfEducation
+	}
+	if languageProficiencies, ok := data["language_proficiencies"].([]interface{}); ok && len(languageProficiencies) > 0 {
+		var langs []string
+		for _, lang := range languageProficiencies {
+			if langMap, ok := lang.(map[string]interface{}); ok {
+				if code, ok := langMap["code"].(string); ok {
+					langs = append(langs, code)
+				}
+			}
+		}
+		if len(langs) > 0 {
+			metadata.CustomFields["languages"] = strings.Join(langs, ", ")
+		}
+	}
+	if socialLinks, ok := data["social_links"].([]interface{}); ok {
+		for _, link := range socialLinks {
+			if linkMap, ok := link.(map[string]interface{}); ok {
+				if platform, ok := linkMap["platform"].(string); ok {
+					if url, ok := linkMap["social_link"].(string); ok {
+						metadata.AdditionalLinks[strings.ToLower(platform)] = url
+					}
+				}
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractSkillshareMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	if user, ok := data["user"].(map[string]interface{}); ok {
+		if fullName, ok := user["full_name"].(string); ok {
+			metadata.DisplayName = fullName
+		} else if name, ok := user["name"].(string); ok {
+			metadata.DisplayName = name
+		}
+		if username, ok := user["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if avatarUrl, ok := user["avatar_url"].(string); ok {
+			metadata.AvatarURL = avatarUrl
+		} else if imageUrl, ok := user["image_url"].(string); ok {
+			metadata.AvatarURL = imageUrl
+		}
+		if bio, ok := user["bio"].(string); ok {
+			metadata.Bio = bio
+		} else if headline, ok := user["headline"].(string); ok {
+			metadata.Bio = headline
+		}
+		if location, ok := user["location"].(string); ok {
+			metadata.Location = location
+		}
+		if website, ok := user["website"].(string); ok && website != "" {
+			metadata.Website = website
+		}
+		if followers, ok := user["followers_count"].(float64); ok {
+			metadata.FollowerCount = int(followers)
+		}
+		if following, ok := user["following_count"].(float64); ok {
+			metadata.FollowingCount = int(following)
+		}
+		if classCount, ok := user["class_count"].(float64); ok {
+			metadata.CustomFields["classes"] = strconv.Itoa(int(classCount))
+		}
+		if totalStudents, ok := user["total_students"].(float64); ok {
+			metadata.CustomFields["students"] = strconv.Itoa(int(totalStudents))
+		}
+	}
+
+	if fullName, ok := data["full_name"].(string); ok {
+		metadata.DisplayName = fullName
+	} else if name, ok := data["name"].(string); ok && metadata.DisplayName == "" {
+		metadata.DisplayName = name
+	}
+	if avatarUrl, ok := data["avatar_url"].(string); ok && metadata.AvatarURL == "" {
+		metadata.AvatarURL = avatarUrl
+	}
+	if bio, ok := data["bio"].(string); ok && metadata.Bio == "" {
+		metadata.Bio = bio
+	}
+	if followers, ok := data["followers_count"].(float64); ok && metadata.FollowerCount == 0 {
+		metadata.FollowerCount = int(followers)
+	}
+
+	return metadata
+}
+
+func extractCodecademyMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	if user, ok := data["user"].(map[string]interface{}); ok {
+		if username, ok := user["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+			metadata.DisplayName = username
+		}
+		if name, ok := user["name"].(string); ok && name != "" {
+			metadata.DisplayName = name
+		}
+		if avatarUrl, ok := user["avatar_url"].(string); ok {
+			metadata.AvatarURL = avatarUrl
+		} else if avatar, ok := user["avatar"].(string); ok {
+			metadata.AvatarURL = avatar
+		}
+		if bio, ok := user["bio"].(string); ok {
+			metadata.Bio = bio
+		}
+		if location, ok := user["location"].(string); ok {
+			metadata.Location = location
+		}
+		if joined, ok := user["joined"].(string); ok {
+			metadata.JoinDate = joined
+		}
+		if points, ok := user["points"].(float64); ok {
+			metadata.CustomFields["points"] = strconv.Itoa(int(points))
+		}
+		if courses, ok := user["courses_completed"].(float64); ok {
+			metadata.CustomFields["courses_completed"] = strconv.Itoa(int(courses))
+		}
+		if badges, ok := user["badges"].(float64); ok {
+			metadata.CustomFields["badges"] = strconv.Itoa(int(badges))
+		} else if badgesCount, ok := user["badges_count"].(float64); ok {
+			metadata.CustomFields["badges"] = strconv.Itoa(int(badgesCount))
+		}
+		if streak, ok := user["streak"].(float64); ok {
+			metadata.CustomFields["streak"] = strconv.Itoa(int(streak))
+		}
+	}
+
+	if username, ok := data["username"].(string); ok {
+		metadata.CustomFields["username"] = username
+		if metadata.DisplayName == "" {
+			metadata.DisplayName = username
+		}
+	}
+	if name, ok := data["name"].(string); ok && name != "" && metadata.DisplayName == metadata.CustomFields["username"] {
+		metadata.DisplayName = name
+	}
+	if avatarUrl, ok := data["avatar_url"].(string); ok && metadata.AvatarURL == "" {
+		metadata.AvatarURL = avatarUrl
+	}
+	if bio, ok := data["bio"].(string); ok && metadata.Bio == "" {
+		metadata.Bio = bio
+	}
+	if points, ok := data["points"].(float64); ok && metadata.CustomFields["points"] == "" {
+		metadata.CustomFields["points"] = strconv.Itoa(int(points))
+	}
+
+	return metadata
+}
+
+func extractFreeCodeCampMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if entities, ok := data["entities"].(map[string]interface{}); ok {
+		if user, ok := entities["user"].(map[string]interface{}); ok {
+			for _, userData := range user {
+				if userMap, ok := userData.(map[string]interface{}); ok {
+					if username, ok := userMap["username"].(string); ok {
+						metadata.CustomFields["username"] = username
+					}
+					if name, ok := userMap["name"].(string); ok {
+						metadata.DisplayName = name
+					}
+					if about, ok := userMap["about"].(string); ok {
+						metadata.Bio = about
+					}
+					if picture, ok := userMap["picture"].(string); ok {
+						metadata.AvatarURL = picture
+					}
+					if location, ok := userMap["location"].(string); ok {
+						metadata.Location = location
+					}
+					if website, ok := userMap["website"].(string); ok && website != "" {
+						metadata.Website = website
+					}
+					if joinDate, ok := userMap["joinDate"].(string); ok {
+						metadata.JoinDate = joinDate
+					}
+					if points, ok := userMap["points"].(float64); ok {
+						metadata.CustomFields["points"] = strconv.Itoa(int(points))
+					}
+					break
+				}
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractLeetCodeMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if matchedUser, ok := data["matchedUser"].(map[string]interface{}); ok {
+		if username, ok := matchedUser["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if profile, ok := matchedUser["profile"].(map[string]interface{}); ok {
+			if realName, ok := profile["realName"].(string); ok {
+				metadata.DisplayName = realName
+			}
+			if aboutMe, ok := profile["aboutMe"].(string); ok {
+				metadata.Bio = aboutMe
+			}
+			if userAvatar, ok := profile["userAvatar"].(string); ok {
+				metadata.AvatarURL = userAvatar
+			}
+			if countryName, ok := profile["countryName"].(string); ok {
+				metadata.Location = countryName
+			}
+			if websites, ok := profile["websites"].([]interface{}); ok && len(websites) > 0 {
+				if websiteStr, ok := websites[0].(string); ok {
+					metadata.Website = websiteStr
+				}
+			}
+			if ranking, ok := profile["ranking"].(float64); ok {
+				metadata.CustomFields["ranking"] = strconv.Itoa(int(ranking))
+			}
+		}
+		if submitStats, ok := matchedUser["submitStats"].(map[string]interface{}); ok {
+			if acSubmissionNum, ok := submitStats["acSubmissionNum"].([]interface{}); ok {
+				for _, stat := range acSubmissionNum {
+					if statMap, ok := stat.(map[string]interface{}); ok {
+						if difficulty, ok := statMap["difficulty"].(string); ok {
+							if count, ok := statMap["count"].(float64); ok {
+								metadata.CustomFields["solved_"+strings.ToLower(difficulty)] = strconv.Itoa(int(count))
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractHackerRankMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if model, ok := data["model"].(map[string]interface{}); ok {
+		if username, ok := model["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if name, ok := model["name"].(string); ok {
+			metadata.DisplayName = name
+		}
+		if about, ok := model["about"].(string); ok {
+			metadata.Bio = about
+		}
+		if avatar, ok := model["avatar"].(string); ok {
+			metadata.AvatarURL = avatar
+		}
+		if country, ok := model["country"].(string); ok {
+			metadata.Location = country
+		}
+		if website, ok := model["website"].(string); ok && website != "" {
+			metadata.Website = website
+		}
+		if level, ok := model["level"].(string); ok {
+			metadata.CustomFields["level"] = level
+		}
+		if score, ok := model["score"].(float64); ok {
+			metadata.CustomFields["score"] = strconv.FormatFloat(score, 'f', 0, 64)
+		}
+		if badges, ok := model["badges"].([]interface{}); ok {
+			metadata.CustomFields["badges"] = strconv.Itoa(len(badges))
+		}
+	}
+
+	return metadata
+}
+
+func extractCodewarsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractReplitMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if user, ok := data["user"].(map[string]interface{}); ok {
+		if username, ok := user["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if firstName, ok := user["firstName"].(string); ok {
+			lastName, _ := user["lastName"].(string)
+			if lastName != "" {
+				metadata.DisplayName = firstName + " " + lastName
+			} else {
+				metadata.DisplayName = firstName
+			}
+		}
+		if bio, ok := user["bio"].(string); ok {
+			metadata.Bio = bio
+		}
+		if image, ok := user["image"].(string); ok {
+			metadata.AvatarURL = image
+		}
+		if url, ok := user["url"].(string); ok && url != "" {
+			metadata.Website = url
+		}
+		if followerCount, ok := user["followerCount"].(float64); ok {
+			metadata.FollowerCount = int(followerCount)
+		}
+		if followingCount, ok := user["followingCount"].(float64); ok {
+			metadata.FollowingCount = int(followingCount)
+		}
+	}
+
+	return metadata
+}
+
+func extractGlitchMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if login, ok := data["login"].(string); ok {
+		metadata.CustomFields["username"] = login
+	}
+	if name, ok := data["name"].(string); ok {
+		metadata.DisplayName = name
+	}
+	if description, ok := data["description"].(string); ok {
+		metadata.Bio = description
+	}
+	if avatarUrl, ok := data["avatarUrl"].(string); ok {
+		metadata.AvatarURL = avatarUrl
+	}
+	if location, ok := data["location"].(string); ok {
+		metadata.Location = location
+	}
+	if website, ok := data["website"].(string); ok && website != "" {
+		metadata.Website = website
+	}
+	if thanksCount, ok := data["thanksCount"].(float64); ok {
+		metadata.CustomFields["thanks_count"] = strconv.Itoa(int(thanksCount))
+	}
+
+	return metadata
+}
+
+func extractObservableMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if login, ok := data["login"].(string); ok {
+		metadata.CustomFields["username"] = login
+	}
+	if name, ok := data["name"].(string); ok {
+		metadata.DisplayName = name
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if avatar, ok := data["avatar"].(string); ok {
+		metadata.AvatarURL = avatar
+	}
+	if location, ok := data["location"].(string); ok {
+		metadata.Location = location
+	}
+	if home, ok := data["home"].(string); ok && home != "" {
+		metadata.Website = home
+	}
+	if tier, ok := data["tier"].(string); ok {
+		metadata.CustomFields["tier"] = tier
+	}
+
+	return metadata
+}
+
+func extractKaggleMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if userName, ok := data["userName"].(string); ok {
+		metadata.CustomFields["username"] = userName
+	}
+	if displayName, ok := data["displayName"].(string); ok {
+		metadata.DisplayName = displayName
+	}
+	if bio, ok := data["bio"].(string); ok {
+		metadata.Bio = bio
+	}
+	if thumbnailUrl, ok := data["thumbnailUrl"].(string); ok {
+		metadata.AvatarURL = thumbnailUrl
+	}
+	if userCountry, ok := data["userCountry"].(string); ok {
+		metadata.Location = userCountry
+	}
+	if websiteUrl, ok := data["websiteUrl"].(string); ok && websiteUrl != "" {
+		metadata.Website = websiteUrl
+	}
+	if tier, ok := data["tier"].(string); ok {
+		metadata.CustomFields["tier"] = tier
+	}
+	if performanceTier, ok := data["performanceTier"].(string); ok {
+		metadata.CustomFields["performance_tier"] = performanceTier
+	}
+	if followerCount, ok := data["followerCount"].(float64); ok {
+		metadata.FollowerCount = int(followerCount)
+	}
+	if followingCount, ok := data["followingCount"].(float64); ok {
+		metadata.FollowingCount = int(followingCount)
+	}
+
+	return metadata
+}
+
+func extractHuggingFaceMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	if name, ok := data["name"].(string); ok {
+		metadata.CustomFields["username"] = name
+	}
+	if fullname, ok := data["fullname"].(string); ok {
+		metadata.DisplayName = fullname
+	}
+	if details, ok := data["details"].(string); ok {
+		metadata.Bio = details
+	}
+	if avatarUrl, ok := data["avatarUrl"].(string); ok {
+		metadata.AvatarURL = avatarUrl
+	}
+	if websiteUrl, ok := data["websiteUrl"].(string); ok && websiteUrl != "" {
+		metadata.Website = websiteUrl
+	}
+	if numFollowers, ok := data["numFollowers"].(float64); ok {
+		metadata.FollowerCount = int(numFollowers)
+	}
+	if numFollowing, ok := data["numFollowing"].(float64); ok {
+		metadata.FollowingCount = int(numFollowing)
+	}
+	if numModels, ok := data["numModels"].(float64); ok {
+		metadata.CustomFields["num_models"] = strconv.Itoa(int(numModels))
+	}
+	if numDatasets, ok := data["numDatasets"].(float64); ok {
+		metadata.CustomFields["num_datasets"] = strconv.Itoa(int(numDatasets))
+	}
+	if numSpaces, ok := data["numSpaces"].(float64); ok {
+		metadata.CustomFields["num_spaces"] = strconv.Itoa(int(numSpaces))
+	}
+
+	return metadata
+}
+
+func extractPapersWithCodeMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractArXivMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractResearchGateMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractAcademiaEduMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractORCIDMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractGoogleScholarMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPublonsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractFigmaMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCanvaMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractNotionMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractMiroMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractTrelloMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractAsanaMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractMondayComMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractJiraMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractBasecampMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractWrikeMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractClickUpMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractAirtableMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCodaMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractRoamResearchMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractObsidianPublishMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractEvernoteMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractOneNoteMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractNotionPublicMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPolyworkMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractContraMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractWellfoundMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractHiredMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractTriplebyteMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractToptalMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractUpworkMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	nameRe := regexp.MustCompile(`<h1[^>]*class="[^"]*identity-name[^"]*"[^>]*>([^<]+)</h1>`)
+	if matches := nameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = strings.TrimSpace(matches[1])
+	}
+
+	titleRe := regexp.MustCompile(`<div[^>]*class="[^"]*identity-title[^"]*"[^>]*>([^<]+)</div>`)
+	if matches := titleRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = strings.TrimSpace(matches[1])
+	}
+
+	avatarRe := regexp.MustCompile(`<img[^>]*class="[^"]*identity-photo[^"]*"[^>]*src="([^"]+)"`)
+	if matches := avatarRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	locationRe := regexp.MustCompile(`<span[^>]*class="[^"]*location[^"]*"[^>]*>([^<]+)</span>`)
+	if matches := locationRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Location = strings.TrimSpace(matches[1])
+	}
+
+	ratingRe := regexp.MustCompile(`<span[^>]*class="[^"]*rating[^"]*"[^>]*>([0-9.]+)</span>`)
+	if matches := ratingRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["rating"] = matches[1]
+	}
+
+	jobsRe := regexp.MustCompile(`<span[^>]*class="[^"]*jobs[^"]*"[^>]*>(\d+)</span>`)
+	if matches := jobsRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["jobs_completed"] = matches[1]
+	}
+
+	earnedRe := regexp.MustCompile(`<span[^>]*class="[^"]*earned[^"]*"[^>]*>\$([0-9,]+)</span>`)
+	if matches := earnedRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["total_earned"] = "$" + matches[1]
+	}
+
+	return metadata
+}
+
+func extractFiverrMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	usernameRe := regexp.MustCompile(`<h2[^>]*class="[^"]*username[^"]*"[^>]*>@([^<]+)</h2>`)
+	if matches := usernameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["username"] = strings.TrimSpace(matches[1])
+	}
+
+	nameRe := regexp.MustCompile(`<h1[^>]*class="[^"]*seller-name[^"]*"[^>]*>([^<]+)</h1>`)
+	if matches := nameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = strings.TrimSpace(matches[1])
+	}
+
+	avatarRe := regexp.MustCompile(`<img[^>]*class="[^"]*profile-pict[^"]*"[^>]*src="([^"]+)"`)
+	if matches := avatarRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	descRe := regexp.MustCompile(`<div[^>]*class="[^"]*seller-card-description[^"]*"[^>]*>([^<]+)</div>`)
+	if matches := descRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = strings.TrimSpace(matches[1])
+	}
+
+	locationRe := regexp.MustCompile(`<div[^>]*class="[^"]*location[^"]*"[^>]*>From <b>([^<]+)</b>`)
+	if matches := locationRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Location = strings.TrimSpace(matches[1])
+	}
+
+	ratingRe := regexp.MustCompile(`<span[^>]*class="[^"]*rating-score[^"]*"[^>]*>([0-9.]+)</span>`)
+	if matches := ratingRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["rating"] = matches[1]
+	}
+
+	reviewsRe := regexp.MustCompile(`<span[^>]*class="[^"]*ratings-count[^"]*"[^>]*>\((\d+)\)</span>`)
+	if matches := reviewsRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["reviews"] = matches[1]
+	}
+
+	memberSinceRe := regexp.MustCompile(`Member since ([^<]+)</div>`)
+	if matches := memberSinceRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.JoinDate = strings.TrimSpace(matches[1])
+	}
+
+	return metadata
+}
+
+func extractFreelancerMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	if result, ok := data["result"].(map[string]interface{}); ok {
+		if username, ok := result["username"].(string); ok {
+			metadata.CustomFields["username"] = username
+		}
+		if publicName, ok := result["public_name"].(string); ok {
+			metadata.DisplayName = publicName
+		}
+		if displayName, ok := result["display_name"].(string); ok && metadata.DisplayName == "" {
+			metadata.DisplayName = displayName
+		}
+		if avatar, ok := result["avatar_large_url"].(string); ok {
+			metadata.AvatarURL = avatar
+		} else if avatar, ok := result["avatar"].(string); ok {
+			metadata.AvatarURL = avatar
+		}
+		if tagline, ok := result["tagline"].(string); ok {
+			metadata.Bio = tagline
+		}
+		if location, ok := result["location"].(map[string]interface{}); ok {
+			if city, ok := location["city"].(string); ok {
+				loc := city
+				if country, ok := location["country"].(map[string]interface{}); ok {
+					if countryName, ok := country["name"].(string); ok {
+						loc += ", " + countryName
+					}
+				}
+				metadata.Location = loc
+			}
+		}
+		if reputation, ok := result["reputation"].(float64); ok {
+			metadata.CustomFields["reputation"] = strconv.Itoa(int(reputation))
+		}
+		if reviewCount, ok := result["review_count"].(float64); ok {
+			metadata.CustomFields["review_count"] = strconv.Itoa(int(reviewCount))
+		}
+		if completionRate, ok := result["completion_rate"].(float64); ok {
+			metadata.CustomFields["completion_rate"] = strconv.FormatFloat(completionRate, 'f', 2, 64)
+		}
+		if memberSince, ok := result["registration_date"].(float64); ok {
+			metadata.JoinDate = strconv.FormatInt(int64(memberSince), 10)
+		}
+	}
+
+	return metadata
+}
+
+func extractGuruMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPeoplePerHourMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extract99designsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractBehanceNetworkMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCoroflotMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCarbonmadeMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPortfolioboxMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractFormatMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCargoCollectiveMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractSquarespacePortfolioMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractWixPortfolioMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractWebflowPortfolioMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractReadCVMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractBentoMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractBeaconsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCarrdMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractMilkshakeMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractLinkinBioMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractTaplinkMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractLinkpopMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractShorbyMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCampsiteMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractBioFmMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractLnkBioMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractAllMyLinksMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractContactInBioMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractHooBeMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractSnipfeedMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractKojiMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractStanStoreMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractGumroadMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractTeachableMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractThinkificMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPodiaMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractKajabiMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCircleMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractMightyNetworksMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCommunityComMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractGenevaMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractGuildedMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractRevoltMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractMatrixMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractElementMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractRocketChatMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractMattermostMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractZulipMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractDiscourseMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractFlarumMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractNodeBBMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPhpBBMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractVBulletinMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractXenForoMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractInvisionCommunityMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractMyBBMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractSimpleMachinesForumMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractFluxBBMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPunBBMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractBbPressMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractBuddyPressMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractElggMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractOxwallMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractSocialEngineMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractDolphinMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractJcowMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPHPFoxMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractNingMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractYammerMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractWorkplaceFromFacebookMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractChatterMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractJiveMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractLithiumMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractVanillaForumsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractDisqusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCommentoMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractRemark42Metadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractIssoMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractStaticmanMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractUtterancesMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractGiscusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractHyvorTalkMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractGraphCommentMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractIntenseDebateMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractLivefyreMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractMuutMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCoralProjectTalkMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCivilCommentsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractViafourametadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractOpenWebMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractRebelMouseMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractSpotIMMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractVuukleMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractRemarkboxMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractSchnackMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractTalkyardMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCusdisMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCactusCommentsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPlausibleCommentsMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractRuttlMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractAnnotateTVMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractHypothesisMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractRapGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractRockGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractNewsGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPoetryGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractSportsGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractCountryGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractPopGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractRnBGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractChristianGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractGospelGeniusMetadata(responseText string, responseCode int) *ProfileMetadata {
+	return nil
+}
+
+func extractGenericJSONMetadata(responseText string) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return extractGenericHTMLMetadata(responseText)
+	}
+
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	nameFields := []string{"name", "display_name", "displayName", "full_name", "fullName", "realname", "real_name"}
+	bioFields := []string{"bio", "about", "description", "aboutMe", "about_me", "summary"}
+	avatarFields := []string{"avatar", "avatar_url", "avatarUrl", "profile_image", "profileImage", "picture", "photo", "image"}
+	locationFields := []string{"location", "city", "country", "region"}
+	websiteFields := []string{"website", "url", "blog", "homepage", "link"}
+	followerFields := []string{"followers", "follower_count", "followerCount", "subscribers", "subscriber_count"}
+	followingFields := []string{"following", "following_count", "followingCount", "subscriptions"}
+
+	for key, value := range data {
+		lowerKey := strings.ToLower(key)
+
+		if containsString(nameFields, lowerKey) {
+			if str, ok := value.(string); ok {
+				metadata.DisplayName = str
+			}
+		}
+		if containsString(bioFields, lowerKey) {
+			if str, ok := value.(string); ok {
+				metadata.Bio = str
+			}
+		}
+		if containsString(avatarFields, lowerKey) {
+			if str, ok := value.(string); ok {
+				metadata.AvatarURL = str
+			}
+		}
+		if containsString(locationFields, lowerKey) {
+			if str, ok := value.(string); ok {
+				metadata.Location = str
+			}
+		}
+		if containsString(websiteFields, lowerKey) {
+			if str, ok := value.(string); ok {
+				metadata.Website = str
+			}
+		}
+		if containsString(followerFields, lowerKey) {
+			if num, ok := value.(float64); ok {
+				metadata.FollowerCount = int(num)
+			}
+		}
+		if containsString(followingFields, lowerKey) {
+			if num, ok := value.(float64); ok {
+				metadata.FollowingCount = int(num)
+			}
+		}
+		if strings.Contains(lowerKey, "verified") || strings.Contains(lowerKey, "is_verified") {
+			if b, ok := value.(bool); ok {
+				metadata.IsVerified = b
+			}
+		}
+		if strings.Contains(lowerKey, "created") || strings.Contains(lowerKey, "joined") || strings.Contains(lowerKey, "registered") {
+			if str, ok := value.(string); ok {
+				metadata.JoinDate = str
+			}
+		}
+	}
+
+	return metadata
+}
+
+func extractGenericHTMLMetadata(responseText string) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		AdditionalLinks: make(map[string]string),
+		CustomFields:    make(map[string]string),
+	}
+
+	ogTitleRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	ogDescRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+	ogImageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+	twitterTitleRe := regexp.MustCompile(`<meta\s+name=["']twitter:title["']\s+content=["']([^"']+)["']`)
+	twitterDescRe := regexp.MustCompile(`<meta\s+name=["']twitter:description["']\s+content=["']([^"']+)["']`)
+	twitterImageRe := regexp.MustCompile(`<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']`)
+
+	if matches := ogTitleRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = matches[1]
+	}
+	if matches := twitterTitleRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.DisplayName == "" {
+		metadata.DisplayName = matches[1]
+	}
+
+	if matches := ogDescRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.Bio = matches[1]
+	}
+	if matches := twitterDescRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.Bio == "" {
+		metadata.Bio = matches[1]
+	}
+
+	if matches := ogImageRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+	if matches := twitterImageRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.AvatarURL == "" {
+		metadata.AvatarURL = matches[1]
+	}
+
+	return metadata
+}
+
+func containsString(slice []string, str string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
+}
+
+func extractRobloxMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields: make(map[string]string),
+	}
+
+	if code, ok := data["code"].(float64); ok {
+		metadata.CustomFields["validation_code"] = strconv.Itoa(int(code))
+	}
+	if message, ok := data["message"].(string); ok {
+		metadata.CustomFields["validation_message"] = message
+	}
+
+	return metadata
+}
+
+func extractMinecraftMetadata(responseText string, responseCode int) *ProfileMetadata {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(responseText), &data); err != nil {
+		return nil
+	}
+
+	metadata := &ProfileMetadata{
+		CustomFields: make(map[string]string),
+	}
+
+	if name, ok := data["name"].(string); ok {
+		metadata.CustomFields["username"] = name
+		metadata.DisplayName = name
+	}
+	if id, ok := data["id"].(string); ok {
+		metadata.CustomFields["uuid"] = id
+	}
+	if uuid, ok := data["uuid"].(string); ok {
+		metadata.CustomFields["uuid"] = uuid
+	}
+	if skin, ok := data["skin"].(string); ok {
+		metadata.AvatarURL = skin
+	}
+	if skinURL, ok := data["skin_url"].(string); ok {
+		metadata.AvatarURL = skinURL
+	}
+	if legacy, ok := data["legacy"].(bool); ok {
+		metadata.CustomFields["legacy"] = strconv.FormatBool(legacy)
+	}
+	if demo, ok := data["demo"].(bool); ok {
+		metadata.CustomFields["demo"] = strconv.FormatBool(demo)
+	}
+
+	return metadata
+}
+
+func extractXboxGamertagMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	gamertagRe := regexp.MustCompile(`<h1[^>]*class="[^"]*gamertag[^"]*"[^>]*>([^<]+)</h1>`)
+	if matches := gamertagRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = strings.TrimSpace(matches[1])
+		metadata.CustomFields["gamertag"] = strings.TrimSpace(matches[1])
+	}
+
+	gamerscoreRe := regexp.MustCompile(`<div[^>]*class="[^"]*gamerscore[^"]*"[^>]*>([0-9,]+)</div>`)
+	if matches := gamerscoreRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["gamerscore"] = strings.ReplaceAll(matches[1], ",", "")
+	}
+
+	avatarRe := regexp.MustCompile(`<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"`)
+	if matches := avatarRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	gamesPlayedRe := regexp.MustCompile(`<div[^>]*class="[^"]*games-played[^"]*"[^>]*>([0-9,]+)</div>`)
+	if matches := gamesPlayedRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["games_played"] = strings.ReplaceAll(matches[1], ",", "")
+	}
+
+	achievementsRe := regexp.MustCompile(`<div[^>]*class="[^"]*achievements[^"]*"[^>]*>([0-9,]+)</div>`)
+	if matches := achievementsRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["achievements"] = strings.ReplaceAll(matches[1], ",", "")
+	}
+
+	ogTitleRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	if matches := ogTitleRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.DisplayName == "" {
+		metadata.DisplayName = matches[1]
+	}
+
+	ogImageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+	if matches := ogImageRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.AvatarURL == "" {
+		metadata.AvatarURL = matches[1]
+	}
+
+	return metadata
+}
+
+func extractFortniteMetadata(responseText string, responseCode int) *ProfileMetadata {
+	metadata := &ProfileMetadata{
+		CustomFields:    make(map[string]string),
+		AdditionalLinks: make(map[string]string),
+	}
+
+	usernameRe := regexp.MustCompile(`<h1[^>]*class="[^"]*trn-profile-header__name[^"]*"[^>]*>([^<]+)</h1>`)
+	if matches := usernameRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.DisplayName = strings.TrimSpace(matches[1])
+		metadata.CustomFields["username"] = strings.TrimSpace(matches[1])
+	}
+
+	levelRe := regexp.MustCompile(`<div[^>]*class="[^"]*level[^"]*"[^>]*>.*?([0-9]+)</div>`)
+	if matches := levelRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["level"] = matches[1]
+	}
+
+	winsRe := regexp.MustCompile(`<div[^>]*class="[^"]*stat[^"]*"[^>]*>.*?Wins.*?([0-9,]+)</div>`)
+	if matches := winsRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["wins"] = strings.ReplaceAll(matches[1], ",", "")
+	}
+
+	killsRe := regexp.MustCompile(`<div[^>]*class="[^"]*stat[^"]*"[^>]*>.*?Kills.*?([0-9,]+)</div>`)
+	if matches := killsRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["kills"] = strings.ReplaceAll(matches[1], ",", "")
+	}
+
+	kdrRe := regexp.MustCompile(`<div[^>]*class="[^"]*stat[^"]*"[^>]*>.*?K/D.*?([0-9.]+)</div>`)
+	if matches := kdrRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["kd_ratio"] = matches[1]
+	}
+
+	matchesRe := regexp.MustCompile(`<div[^>]*class="[^"]*stat[^"]*"[^>]*>.*?Matches.*?([0-9,]+)</div>`)
+	if matches := matchesRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.CustomFields["matches"] = strings.ReplaceAll(matches[1], ",", "")
+	}
+
+	ogTitleRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	if matches := ogTitleRe.FindStringSubmatch(responseText); len(matches) > 1 && metadata.DisplayName == "" {
+		metadata.DisplayName = matches[1]
+	}
+
+	ogImageRe := regexp.MustCompile(`<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+	if matches := ogImageRe.FindStringSubmatch(responseText); len(matches) > 1 {
+		metadata.AvatarURL = matches[1]
+	}
+
+	return metadata
+}
