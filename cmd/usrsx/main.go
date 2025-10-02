@@ -13,61 +13,59 @@ import (
 	"github.com/gnomegl/usrsx/internal/utils"
 )
 
-var config cli.Config
-
-var rootCmd = &cobra.Command{
-	Use:   "usrsx [username...]",
-	Short: "Username availability checker across hundreds of websites",
-	Long: `usrsx is a powerful username enumeration tool that checks username 
-availability across hundreds of websites using the WhatsMyName dataset.
-
-Features:
-  - Browser impersonation for accurate detection
-  - Concurrent checking with goroutines
-  - Proxy support (single proxy or proxies.txt file rotation)
-  - Multiple export formats (CSV, JSON, HTML, PDF)
-  - Self-check mode for validation
-  - Category filtering`,
-	Version: core.Version,
-	RunE:    runCheck,
-}
+var (
+	config  cli.Config
+	rootCmd = &cobra.Command{
+		Use:     "usrsx [username...]",
+		Short:   "Username availability checker across hundreds of websites",
+		Long:    `usrsx is a powerful username enumeration tool that checks username availability across hundreds of websites using the WhatsMyName dataset.`,
+		Version: core.Version,
+		RunE:    runCheck,
+	}
+)
 
 func init() {
-	rootCmd.Flags().StringSliceVarP(&config.SiteNames, "site", "s", []string{}, "Specific site name(s) to check")
-	rootCmd.Flags().BoolVarP(&config.NoColor, "no-color", "C", false, "Disable colored output")
-	rootCmd.Flags().BoolVarP(&config.NoProgressbar, "no-progressbar", "P", false, "Disable progress bar")
-	rootCmd.Flags().StringSliceVarP(&config.LocalLists, "local-list", "l", []string{}, "Path(s) to local JSON file(s)")
-	rootCmd.Flags().StringSliceVarP(&config.RemoteLists, "remote-list", "r", []string{}, "URL(s) to fetch remote lists")
-	rootCmd.Flags().StringVarP(&config.LocalSchema, "local-schema", "L", "", "Path to local schema file")
-	rootCmd.Flags().StringVarP(&config.RemoteSchema, "remote-schema", "R", core.WMNSchemaURL, "URL to fetch schema")
-	rootCmd.Flags().BoolVarP(&config.SelfCheck, "self-check", "S", false, "Run self-check mode")
-	rootCmd.Flags().StringSliceVarP(&config.IncludeCategories, "include-categories", "I", []string{}, "Include only these categories")
-	rootCmd.Flags().StringSliceVarP(&config.ExcludeCategories, "exclude-categories", "E", []string{}, "Exclude these categories")
-	rootCmd.Flags().StringVarP(&config.Proxy, "proxy", "p", "", "Proxy server (http://proxy:port, socks5://proxy:port)")
-	rootCmd.Flags().StringVarP(&config.ProxyFile, "proxy-file", "F", "", "File containing proxies (one per line)")
-	rootCmd.Flags().IntVarP(&config.Timeout, "timeout", "t", core.HTTPRequestTimeoutSeconds, "Request timeout in seconds")
-	rootCmd.Flags().BoolVarP(&config.AllowRedirect, "allow-redirects", "A", core.HTTPAllowRedirects, "Follow HTTP redirects")
-	rootCmd.Flags().BoolVarP(&config.VerifySSL, "verify-ssl", "V", core.HTTPSSLVerify, "Verify SSL certificates")
-	rootCmd.Flags().StringVarP(&config.Impersonate, "impersonate", "i", "chrome", "Browser to impersonate (chrome, firefox, safari, edge)")
-	rootCmd.Flags().IntVarP(&config.MaxTasks, "max-tasks", "m", core.MaxConcurrentTasks, "Maximum concurrent tasks")
-	rootCmd.Flags().BoolVarP(&config.FuzzyMode, "fuzzy", "f", false, "Enable fuzzy validation mode")
-	rootCmd.Flags().BoolVarP(&config.ShowDetails, "show-details", "d", false, "Show detailed output")
-	rootCmd.Flags().BoolVarP(&config.Browse, "browse", "b", false, "Open found profiles in browser")
-	rootCmd.Flags().BoolVarP(&config.SaveResponse, "save-response", "w", false, "Save HTTP responses")
-	rootCmd.Flags().StringVarP(&config.ResponsePath, "response-path", "W", "", "Custom path for responses")
-	rootCmd.Flags().BoolVarP(&config.OpenResponse, "open-response", "o", false, "Open saved responses")
-	rootCmd.Flags().BoolVarP(&config.CSVExport, "csv", "c", false, "Output as CSV to stdout")
-	rootCmd.Flags().StringVarP(&config.CSVPath, "csv-output", "", "", "Export to CSV file (path required)")
-	rootCmd.Flags().StringVarP(&config.PDFPath, "pdf", "", "", "Export to PDF (path required)")
-	rootCmd.Flags().BoolVarP(&config.HTMLExport, "html", "H", false, "Export to HTML")
-	rootCmd.Flags().StringVarP(&config.HTMLPath, "html-path", "T", "", "Custom HTML path")
-	rootCmd.Flags().BoolVarP(&config.JSONExport, "json", "j", false, "Output as JSON to stdout")
-	rootCmd.Flags().StringVarP(&config.JSONPath, "json-output", "", "", "Export to JSON file (path required)")
-	rootCmd.Flags().BoolVarP(&config.FilterAll, "filter-all", "a", false, "Show all results")
-	rootCmd.Flags().BoolVarP(&config.FilterErrors, "filter-errors", "e", false, "Show only errors")
-	rootCmd.Flags().BoolVarP(&config.FilterNotFound, "filter-not-found", "n", false, "Show only not found")
-	rootCmd.Flags().BoolVarP(&config.FilterUnknown, "filter-unknown", "u", false, "Show only unknown")
-	rootCmd.Flags().BoolVarP(&config.FilterAmbiguous, "filter-ambiguous", "g", false, "Show only ambiguous")
+	f := rootCmd.Flags()
+
+	f.StringSliceVarP(&config.SiteNames, "site", "s", []string{}, "Specific site name(s) to check")
+	f.StringSliceVarP(&config.LocalLists, "local-list", "l", []string{}, "Path(s) to local JSON file(s)")
+	f.StringSliceVarP(&config.RemoteLists, "remote-list", "r", []string{}, "URL(s) to fetch remote lists")
+	f.StringVarP(&config.LocalSchema, "local-schema", "L", "", "Path to local schema file")
+	f.StringVarP(&config.RemoteSchema, "remote-schema", "R", core.WMNSchemaURL, "URL to fetch schema")
+	f.BoolVarP(&config.SelfCheck, "self-check", "S", false, "Run self-check mode")
+
+	f.StringSliceVarP(&config.IncludeCategories, "include-categories", "I", []string{}, "Include only these categories")
+	f.StringSliceVarP(&config.ExcludeCategories, "exclude-categories", "E", []string{}, "Exclude these categories")
+	f.BoolVarP(&config.FilterAll, "filter-all", "a", false, "Show all results")
+	f.BoolVarP(&config.FilterErrors, "filter-errors", "e", false, "Show only errors")
+	f.BoolVarP(&config.FilterNotFound, "filter-not-found", "n", false, "Show only not found")
+	f.BoolVarP(&config.FilterUnknown, "filter-unknown", "u", false, "Show only unknown")
+	f.BoolVarP(&config.FilterAmbiguous, "filter-ambiguous", "g", false, "Show only ambiguous")
+
+	f.BoolVarP(&config.CSVExport, "csv", "c", false, "Output as CSV to stdout")
+	f.StringVarP(&config.CSVPath, "csv-output", "", "", "Export to CSV file (path required)")
+	f.BoolVarP(&config.JSONExport, "json", "j", false, "Output as JSON to stdout")
+	f.StringVarP(&config.JSONPath, "json-output", "", "", "Export to JSON file (path required)")
+	f.BoolVarP(&config.HTMLExport, "html", "H", false, "Export to HTML")
+	f.StringVarP(&config.HTMLPath, "html-path", "T", "", "Custom HTML path")
+	f.StringVarP(&config.PDFPath, "pdf", "", "", "Export to PDF (path required)")
+
+	f.StringVarP(&config.Proxy, "proxy", "p", "", "Proxy server (http://proxy:port, socks5://proxy:port)")
+	f.StringVarP(&config.ProxyFile, "proxy-file", "F", "", "File containing proxies (one per line)")
+	f.IntVarP(&config.Timeout, "timeout", "t", core.HTTPRequestTimeoutSeconds, "Request timeout in seconds")
+	f.BoolVarP(&config.AllowRedirect, "allow-redirects", "A", core.HTTPAllowRedirects, "Follow HTTP redirects")
+	f.BoolVarP(&config.VerifySSL, "verify-ssl", "V", core.HTTPSSLVerify, "Verify SSL certificates")
+	f.StringVarP(&config.Impersonate, "impersonate", "i", "chrome", "Browser to impersonate (chrome, firefox, safari, edge)")
+	f.IntVarP(&config.MaxTasks, "max-tasks", "m", core.MaxConcurrentTasks, "Maximum concurrent tasks")
+
+	f.BoolVarP(&config.FuzzyMode, "fuzzy", "f", false, "Enable fuzzy validation mode")
+	f.BoolVarP(&config.ShowDetails, "show-details", "d", false, "Show detailed output")
+	f.BoolVarP(&config.NoColor, "no-color", "C", false, "Disable colored output")
+	f.BoolVarP(&config.NoProgressbar, "no-progressbar", "P", false, "Disable progress bar")
+	f.BoolVarP(&config.Browse, "browse", "b", false, "Open found profiles in browser")
+	f.BoolVarP(&config.SaveResponse, "save-response", "w", false, "Save HTTP responses")
+	f.StringVarP(&config.ResponsePath, "response-path", "W", "", "Custom path for responses")
+	f.BoolVarP(&config.OpenResponse, "open-response", "o", false, "Open saved responses")
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
