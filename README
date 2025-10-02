@@ -1,208 +1,265 @@
-usrsx
+USRSX                    Username Search Tool                    USRSX
 
-Features
+NAME
+     usrsx - username presence checker across hundreds of websites
 
-- Broad Site Coverage: Leverages the WhatsMyName dataset for extensive username enumeration
-- Browser Impersonation: Simulate Chrome, Firefox, Safari, Edge for accurate detection
-- Real-Time Console UI: Live progress tracking with Bubbletea
-- Concurrent & Fast: High-speed concurrent checks using goroutines
-- Fuzzy Matching: Optional fuzzy mode for broader username discovery
-- Category Filters: Include or exclude sites by category
-- Proxy Support: Single proxy or rotating proxy pool from file
-- Self-Check Mode: Validate detection methods for reliability
-- Export Results: Output to CSV, JSON, HTML, and text formats
-- No Dependencies: Single binary executable
+SYNOPSIS
+     usrsx [options] username...
+     usrsx --self-check [options]
 
-Installation
+DESCRIPTION
+     usrsx is a concurrent username enumeration tool that checks username 
+     availability across hundreds of websites using the WhatsMyName dataset.
+     The tool leverages browser impersonation, proxy rotation, and goroutine-
+     based concurrency for high-speed enumeration.
 
-From Source
+     The core checker validates usernames against site-specific detection 
+     patterns including error types, HTTP status codes, and response body 
+     matching. Fuzzy mode provides additional validation flexibility.
 
-git clone https://github.com/gnomegl/usrsx.git
-cd usrsx
-go build -o usrsx cmd/usrsx/main.go
+BUILDING
+     Requires Go 1.19 or later.
 
-Using Go Install
+     From source:
+         $ git clone https://github.com/gnomegl/usrsx.git
+         $ cd usrsx
+         $ go build -o usrsx cmd/usrsx/main.go
 
-go install github.com/gnomegl/usrsx/cmd/usrsx@latest
+     Via go install:
+         $ go install github.com/gnomegl/usrsx/cmd/usrsx@latest
 
-Usage
+OPTIONS
+     -s, --site name
+             Check only specified site(s). Multiple sites may be specified.
 
-Basic Usage
+     -l, --local-list path
+             Path to local JSON site definition file(s).
 
-Check a single username:
+     -r, --remote-list url
+             URL to fetch remote site definition list(s).
 
-./usrsx -u john_doe
+     -L, --local-schema path
+             Path to local schema validation file.
 
-Check multiple usernames:
+     -R, --remote-schema url
+             URL to fetch remote schema. Default: WhatsMyName schema.
 
-./usrsx -u user1 -u user2 -u user3
+     -S, --self-check
+             Run self-check validation mode to test detection accuracy.
 
-Advanced Options
+     -I, --include-categories category
+             Include only specified categories (comma-separated).
 
-Browser Impersonation
+     -E, --exclude-categories category
+             Exclude specified categories (comma-separated).
 
-./usrsx -u john_doe --impersonate firefox
+     -a, --filter-all
+             Display all results regardless of status.
 
-Available browsers: chrome, firefox, safari, edge, chrome_android, safari_ios
+     -e, --filter-errors
+             Display only results with error status.
 
-Proxy Support
+     -n, --filter-not-found
+             Display only results where username was not found.
 
-Single proxy:
-./usrsx -u john_doe --proxy http://proxy:8080
-./usrsx -u john_doe --proxy socks5://127.0.0.1:1080
+     -u, --filter-unknown
+             Display only results with unknown status.
 
-Proxy rotation from file:
-# Create proxies.txt with one proxy per line
-echo "http://proxy1:8080" > proxies.txt
-echo "http://proxy2:8080" >> proxies.txt
-echo "socks5://proxy3:1080" >> proxies.txt
+     -g, --filter-ambiguous
+             Display only results with ambiguous status.
 
-./usrsx -u john_doe --proxy-file proxies.txt
+     -c, --csv
+             Export results to CSV format (stdout).
 
-Concurrency Control
+     --csv-output path
+             Export results to specified CSV file.
 
-./usrsx -u john_doe --max-tasks 100 --timeout 20
+     -j, --json
+             Export results to JSON format (stdout).
 
-Category Filtering
+     --json-output path
+             Export results to specified JSON file.
 
-# Include only specific categories
-./usrsx -u john_doe --include-categories social,coding
+     -H, --html
+             Export results to HTML format.
 
-# Exclude specific categories
-./usrsx -u john_doe --exclude-categories adult,gaming
+     -T, --html-path path
+             Specify custom HTML export path.
 
-Export Results
+     --pdf path
+             Export results to text format at specified path.
 
-# Export to multiple formats
-./usrsx -u john_doe --csv --json --html
+     -p, --proxy url
+             Proxy server URL. Supports http:// and socks5:// schemes.
+             Format: protocol://[user:pass@]host:port
 
-# Custom export paths
-./usrsx -u john_doe --csv --csv-path results.csv
+     -F, --proxy-file path
+             File containing proxy servers, one per line. Tool will rotate
+             through proxies automatically.
 
-Self-Check Mode
+     -t, --timeout seconds
+             HTTP request timeout in seconds. Default: 30.
 
-Validate site detection accuracy:
+     -A, --allow-redirects
+             Follow HTTP redirects during requests.
 
-./usrsx --self-check
-./usrsx --self-check --show-details
+     -V, --verify-ssl
+             Enable SSL certificate verification.
 
-Result Filtering
+     -i, --impersonate browser
+             Browser to impersonate. Valid options: chrome, firefox, safari,
+             edge, chrome_android, safari_ios. Default: chrome.
 
-# Show all results (including not found)
-./usrsx -u john_doe --filter-all
+     -m, --max-tasks n
+             Maximum concurrent goroutine tasks. Default: 50.
 
-# Show only errors
-./usrsx -u john_doe --filter-errors
+     -f, --fuzzy
+             Enable fuzzy validation mode for broader matching.
 
-# Show only found results (default behavior)
-./usrsx -u john_doe
+     -d, --show-details
+             Display detailed output including HTTP status and response info.
 
-Complete Example
+     -C, --no-color
+             Disable ANSI color output.
 
-./usrsx <username> \
-  --impersonate chrome \
-  --proxy-file proxies.txt \
-  --max-tasks 100 \
-  --timeout 15 \
-  --include-categories social,coding \
-  --csv --json --html \
-  --show-details
+     -P, --no-progressbar
+             Disable progress bar display.
 
-Command Line Options
+     -b, --browse
+             Open found profiles in default web browser.
 
-Basic Options
-Flag | Description
--u, --username | Username(s) to search for
--s, --site | Specific site name(s) to check
---no-color | Disable colored output
---no-progressbar | Disable progress bar
---version | Show version information
+     -w, --save-response
+             Save HTTP responses to disk for inspection.
 
-Input Lists
-Flag | Description
---local-list | Path(s) to local JSON file(s)
---remote-list | URL(s) to fetch remote lists
---local-schema | Path to local schema file
---remote-schema | URL to fetch schema
+     -W, --response-path path
+             Custom directory path for saved HTTP responses.
 
-Network Options
-Flag | Description
---proxy | Proxy server URL
---proxy-file | File with proxies (one per line)
---timeout | Request timeout in seconds (default: 30)
---allow-redirects | Follow HTTP redirects
---verify-ssl | Verify SSL certificates
--i, --impersonate | Browser to impersonate (default: chrome)
+     -o, --open-response
+             Automatically open saved HTTP responses.
 
-Concurrency & Debug
-Flag | Description
---max-tasks | Maximum concurrent tasks (default: 50)
---fuzzy | Enable fuzzy validation mode
---show-details | Show detailed output
---self-check | Run self-check mode
+     --version
+             Display version information and exit.
 
-Export Options
-Flag | Description
---csv | Export to CSV
---csv-path | Custom CSV path
---json | Export to JSON
---json-path | Custom JSON path
---html | Export to HTML
---html-path | Custom HTML path
---pdf | Export to text (PDF placeholder)
---pdf-path | Custom PDF path
+EXAMPLES
+     Basic single username check:
+         $ usrsx john_doe
 
-Result Filters
-Flag | Description
---filter-all | Show all results
---filter-errors | Show only errors
---filter-not-found | Show only not found
---filter-unknown | Show only unknown
---filter-ambiguous | Show only ambiguous
+     Check multiple usernames:
+         $ usrsx alice bob charlie
 
-Configuration Files
+     Check with Firefox browser impersonation:
+         $ usrsx --impersonate firefox john_doe
 
-Proxies File Format
+     Use SOCKS5 proxy:
+         $ usrsx --proxy socks5://127.0.0.1:1080 john_doe
 
-Create a proxies.txt file with one proxy per line:
+     Use rotating proxy pool:
+         $ usrsx --proxy-file proxies.txt john_doe
 
-http://proxy1.example.com:8080
-http://proxy2.example.com:8080
-socks5://127.0.0.1:1080
-# Comments are supported
-https://user:pass@proxy3.example.com:3128
+     Filter by category:
+         $ usrsx --include-categories social,coding john_doe
+         $ usrsx --exclude-categories adult,gaming john_doe
 
-The tool will rotate through proxies automatically.
+     Export to multiple formats:
+         $ usrsx --csv --json --html john_doe
 
-Performance Tips
+     High-concurrency scan with custom timeout:
+         $ usrsx --max-tasks 100 --timeout 15 john_doe
 
-1. Adjust Concurrency: Use --max-tasks to control concurrent requests. Higher values = faster but may trigger rate limiting
-2. Increase Timeout: For slow networks, use --timeout 60 or higher
-3. Use Proxy Rotation: Distribute load across multiple proxies with --proxy-file
-4. Filter Categories: Focus on specific categories to reduce check time
-5. Disable Progress Bar: Use --no-progressbar for slightly better performance
+     Self-check with detailed output:
+         $ usrsx --self-check --show-details
 
-Architecture
+     Complete example:
+         $ usrsx john_doe \
+             --impersonate chrome \
+             --proxy-file proxies.txt \
+             --max-tasks 100 \
+             --timeout 15 \
+             --include-categories social,coding \
+             --csv --json --html \
+             --show-details
 
-usrsx/
-├── cmd/usrsx/          # Main application entry point
-├── internal/
-│   ├── core/             # Core business logic
-│   │   ├── checker.go    # Main username checker
-│   │   ├── models.go     # Data models
-│   │   ├── constants.go  # Constants
-│   │   └── errors.go     # Error types
-│   ├── client/           # HTTP client
-│   │   └── http.go       # Client with proxy rotation
-│   ├── cli/              # CLI components
-│   │   ├── config.go     # Configuration
-│   │   ├── exporters.go  # Export functionality
-│   │   └── progress.go   # Progress tracking
-│   └── utils/            # Utilities
-│       └── validators.go # Validation functions
-├── go.mod
-└── README.md
+FILES
+     proxies.txt
+             Proxy configuration file. One proxy per line. Comments with #.
+             Supported formats:
+                 http://proxy.example.com:8080
+                 socks5://127.0.0.1:1080
+                 https://user:pass@proxy.example.com:3128
 
-Credits
+ARCHITECTURE
+     usrsx/
+         cmd/usrsx/main.go         Entry point, CLI argument parsing
+         internal/
+             core/
+                 checker.go        Username validation engine
+                 models.go         Data structure definitions
+                 constants.go      System constants and defaults
+                 errors.go         Error type definitions
+                 metadata.go       Site metadata handling
+                 metadata_niche.go Niche site metadata
+             client/
+                 http.go           HTTP client with proxy rotation
+             cli/
+                 config.go         Configuration structures
+                 exporters.go      CSV/JSON/HTML export handlers
+                 progress.go       Progress tracking and display
+             utils/
+                 validators.go     Input validation functions
+         go.mod                    Go module definition
+         go.sum                    Dependency checksums
 
-- WhatsMyName dataset: WebBreacher/WhatsMyName
+     Core modules:
+         checker.go    - Implements concurrent site checking via goroutines
+         http.go       - HTTP client with TLS fingerprinting and proxy support
+         exporters.go  - Result serialization to multiple formats
+
+ENVIRONMENT
+     No environment variables are currently used.
+
+DIAGNOSTICS
+     Exit status is 0 on success, 1 on error.
+
+     The tool validates:
+         - Username format (alphanumeric, hyphen, underscore)
+         - Proxy URL format and reachability
+         - Numeric parameter ranges (timeout, max-tasks)
+
+     Error messages are written to stderr.
+
+PERFORMANCE
+     Performance tuning guidelines:
+
+     1. Concurrency: Increase --max-tasks for faster scans (higher values may
+        trigger rate limiting). Default 50, recommended range 50-200.
+
+     2. Timeout: Adjust based on network conditions. Default 30s. For slow
+        networks use 60s or higher.
+
+     3. Proxy rotation: Use --proxy-file to distribute load and avoid rate
+        limiting. Proxies are rotated round-robin.
+
+     4. Category filtering: Use --include-categories to reduce total checks.
+
+SECURITY
+     - SSL verification is disabled by default for compatibility
+     - Proxy credentials are passed in URL (not encrypted)
+     - HTTP responses may be saved to disk with --save-response
+     - No credentials or sensitive data are logged by default
+
+BUGS
+     Report issues at: https://github.com/gnomegl/usrsx/issues
+
+SEE ALSO
+     WhatsMyName dataset: https://github.com/WebBreacher/WhatsMyName
+
+AUTHORS
+     Written by gnomegl.
+
+COPYRIGHT
+     See LICENSE file in source distribution.
+
+VERSION
+     See internal/core/constants.go for version information.
+
+usrsx                            October 2025                         USRSX(1)
