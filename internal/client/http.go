@@ -64,7 +64,7 @@ func LoadProxiesFromFile(filename string) ([]string, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		proxies = append(proxies, line)
+		proxies = append(proxies, "socks5://"+line)
 	}
 
 	if err := scanner.Err(); err != nil {
