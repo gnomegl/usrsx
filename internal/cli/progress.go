@@ -215,7 +215,7 @@ func FormatResult(result core.SiteResult, showDetails bool) string {
 		b.WriteString(warningStyle.Render("? UNKNOWN"))
 	}
 
-	b.WriteString(fmt.Sprintf(" | %s | %s", result.Username, result.SiteName))
+	b.WriteString(fmt.Sprintf(" | %s", result.SiteName))
 
 	if result.ResultURL != "" && result.ResultStatus == core.ResultStatusFound {
 		b.WriteString(fmt.Sprintf(" | %s", infoStyle.Render(result.ResultURL)))

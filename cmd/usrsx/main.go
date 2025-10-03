@@ -98,7 +98,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load WMN data: %w", err)
 	}
-	fmt.Printf("Loaded %d sites\n", len(wmnData.Sites))
+	if !isStdoutExport() {
+		fmt.Printf("Loaded %d sites\n", len(wmnData.Sites))
+	}
 
 	sites := wmnData.Sites
 	if len(config.SiteNames) > 0 {
@@ -106,7 +108,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Filtered to %d sites\n", len(sites))
+		if !isStdoutExport() {
+			fmt.Printf("Filtered to %d sites\n", len(sites))
+		}
 	}
 
 	clientConfig := client.ClientConfig{
@@ -133,8 +137,12 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		results = runUsernameCheck(checker, sites)
 	}
 
-	if shouldExport() {
+	if shouldExport() && !config.JSONExport {
 		exportResults(results)
+	}
+
+	if config.JSONExport {
+		cli.StreamJSONSummary(results, config.Usernames)
 	}
 
 	return nil
@@ -143,8 +151,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 func runUsernameCheck(checker *core.Checker, sites []core.Site) []core.SiteResult {
 	totalChecks := len(config.Usernames) * len(sites)
 
-	fmt.Printf("\nChecking %d username(s) across %d sites (%d total checks)\n\n",
-		len(config.Usernames), len(sites), totalChecks)
+	if !isStdoutExport() {
+		fmt.Printf("\nChecking %d username(s) across %d sites (%d total checks)\n\n",
+			len(config.Usernames), len(sites), totalChecks)
+	}
 
 	progressChan := make(chan core.SiteResult, totalChecks)
 	results := make([]core.SiteResult, 0, totalChecks)
@@ -156,15 +166,25 @@ func runUsernameCheck(checker *core.Checker, sites []core.Site) []core.SiteResul
 
 	for result := range progressChan {
 		results = append(results, result)
-		displayResult(result)
+		if !isStdoutExport() {
+			displayResult(result)
+		} else if config.JSONExport {
+			if shouldStreamJSON(result) {
+				cli.StreamJSON(result)
+			}
+		}
 	}
 
-	displaySummary(results)
+	if !isStdoutExport() {
+		displaySummary(results)
+	}
 	return results
 }
 
 func runSelfCheck(checker *core.Checker, sites []core.Site) []core.SiteResult {
-	fmt.Printf("\nRunning self-check on %d sites\n\n", len(sites))
+	if !isStdoutExport() {
+		fmt.Printf("\nRunning self-check on %d sites\n\n", len(sites))
+	}
 
 	progressChan := make(chan core.SelfCheckResult, len(sites))
 	allResults := make([]core.SiteResult, 0)
@@ -178,11 +198,21 @@ func runSelfCheck(checker *core.Checker, sites []core.Site) []core.SiteResult {
 	}()
 
 	for selfCheckResult := range progressChan {
-		fmt.Println(cli.FormatSelfCheckResult(selfCheckResult, config.ShowDetails))
+		if !isStdoutExport() {
+			fmt.Println(cli.FormatSelfCheckResult(selfCheckResult, config.ShowDetails))
+		} else if config.JSONExport {
+			for _, result := range selfCheckResult.Results {
+				if shouldStreamJSON(result) {
+					cli.StreamJSON(result)
+				}
+			}
+		}
 		allResults = append(allResults, selfCheckResult.Results...)
 	}
 
-	displaySummary(allResults)
+	if !isStdoutExport() {
+		displaySummary(allResults)
+	}
 	return allResults
 }
 
@@ -212,6 +242,28 @@ func shouldDisplayResult(result core.SiteResult) bool {
 	}
 	if !config.FilterErrors && !config.FilterNotFound && !config.FilterUnknown && !config.FilterAmbiguous {
 		return result.ResultStatus == core.ResultStatusFound
+	}
+	return false
+}
+
+func shouldStreamJSON(result core.SiteResult) bool {
+	if config.FilterAll {
+		return true
+	}
+	if config.FilterErrors && result.ResultStatus == core.ResultStatusError {
+		return true
+	}
+	if config.FilterNotFound && result.ResultStatus == core.ResultStatusNotFound {
+		return true
+	}
+	if config.FilterUnknown && result.ResultStatus == core.ResultStatusUnknown {
+		return true
+	}
+	if config.FilterAmbiguous && result.ResultStatus == core.ResultStatusAmbiguous {
+		return true
+	}
+	if !config.FilterErrors && !config.FilterNotFound && !config.FilterUnknown && !config.FilterAmbiguous {
+		return result.ResultStatus == core.ResultStatusFound || result.ResultStatus == core.ResultStatusAmbiguous
 	}
 	return false
 }
@@ -250,6 +302,10 @@ func displaySummary(results []core.SiteResult) {
 	fmt.Println(strings.Repeat("=", 50))
 }
 
+func isStdoutExport() bool {
+	return config.JSONExport || config.CSVExport
+}
+
 func shouldExport() bool {
 	return config.CSVExport || config.CSVPath != "" || config.JSONExport || config.JSONPath != "" || config.HTMLExport || config.PDFPath != ""
 }
@@ -259,37 +315,37 @@ func exportResults(results []core.SiteResult) {
 
 	if config.CSVExport {
 		if err := exporter.ExportCSV(""); err != nil {
-			fmt.Printf("Error exporting CSV: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error exporting CSV: %v\n", err)
 		}
 	}
 
 	if config.CSVPath != "" {
 		if err := exporter.ExportCSV(config.CSVPath); err != nil {
-			fmt.Printf("Error exporting CSV: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error exporting CSV: %v\n", err)
 		}
 	}
 
 	if config.JSONExport {
 		if err := exporter.ExportJSON(""); err != nil {
-			fmt.Printf("Error exporting JSON: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error exporting JSON: %v\n", err)
 		}
 	}
 
 	if config.JSONPath != "" {
 		if err := exporter.ExportJSON(config.JSONPath); err != nil {
-			fmt.Printf("Error exporting JSON: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error exporting JSON: %v\n", err)
 		}
 	}
 
 	if config.HTMLExport {
 		if err := exporter.ExportHTML(config.HTMLPath); err != nil {
-			fmt.Printf("Error exporting HTML: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error exporting HTML: %v\n", err)
 		}
 	}
 
 	if config.PDFPath != "" {
 		if err := exporter.ExportPDF(config.PDFPath); err != nil {
-			fmt.Printf("Error exporting PDF: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error exporting PDF: %v\n", err)
 		}
 	}
 }

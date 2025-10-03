@@ -309,3 +309,61 @@ func (e *Exporter) countByStatus(status core.ResultStatus) int {
 	}
 	return count
 }
+
+func StreamJSON(result core.SiteResult) {
+	encoder := json.NewEncoder(os.Stdout)
+	data := map[string]interface{}{
+		"type":          "result",
+		"username":      result.Username,
+		"site_name":     result.SiteName,
+		"category":      result.Category,
+		"status":        result.ResultStatus,
+		"url":           result.ResultURL,
+		"response_code": result.ResponseCode,
+		"elapsed":       result.Elapsed,
+		"error":         result.Error,
+		"timestamp":     result.CreatedAt.Format(time.RFC3339),
+		"metadata":      result.Metadata,
+	}
+	encoder.Encode(data)
+}
+
+func StreamJSONSummary(results []core.SiteResult, usernames []string) {
+	encoder := json.NewEncoder(os.Stdout)
+
+	found := 0
+	notFound := 0
+	errors := 0
+	unknown := 0
+	ambiguous := 0
+
+	for _, r := range results {
+		switch r.ResultStatus {
+		case core.ResultStatusFound:
+			found++
+		case core.ResultStatusNotFound:
+			notFound++
+		case core.ResultStatusError:
+			errors++
+		case core.ResultStatusUnknown:
+			unknown++
+		case core.ResultStatusAmbiguous:
+			ambiguous++
+		}
+	}
+
+	data := map[string]interface{}{
+		"type":      "summary",
+		"usernames": usernames,
+		"timestamp": time.Now().Format(time.RFC3339),
+		"summary": map[string]int{
+			"total":     len(results),
+			"found":     found,
+			"not_found": notFound,
+			"errors":    errors,
+			"unknown":   unknown,
+			"ambiguous": ambiguous,
+		},
+	}
+	encoder.Encode(data)
+}
